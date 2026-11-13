@@ -90,9 +90,11 @@ task that uses them (`services/topics.py`).
 
 ## Audio cache and options
 
-- `data/tts/` caches every generated word / sentence audio (name = hash + source + extension). A background loop
-  (hourly, and at startup) deletes files older than `TTS_CACHE_MAX_DAYS` (30) and then the oldest files until the
-  folder is under `TTS_CACHE_MAX_MB` (1024). Deleted audio is simply regenerated on demand.
+- Generated word / sentence audio is cached (name = hash + source + extension) in `data/tts/` locally, or in S3
+  in production (`TTS_STORAGE=s3`, `TTS_S3_BUCKET`, `TTS_S3_PREFIX`; `services/speech/audio_store.py`, EC2
+  instance role, no keys). A background loop (hourly, and at startup) deletes files older than
+  `TTS_CACHE_MAX_DAYS` (30) and then the oldest files until the cache is under `TTS_CACHE_MAX_MB` (1024); the S3
+  bucket also has a 30-day lifecycle rule. Deleted audio is simply regenerated on demand.
 - The learner picks the audio source per browser (lesson, review and account pages): Auto, Google
   Translate, human recording (Wiktionary), Kokoro. `GET /api/tts?source=...` puts the choice first and keeps the
   default chain as fallback.
@@ -161,11 +163,36 @@ frontend/
 docs/TECHSTACK.md
 ```
 
-## Before deploying to a VPS
+## Deployment (AWS EC2)
 
-Accounts are built in. Before exposing the app:
+Everything is scripted in `deploy/` (AWS profile `new-frontiers`, region `ap-southeast-2`, see `deploy/config.sh`).
 
-- add HTTPS: browsers require it for the microphone (Caddy is the simplest option), and set `COOKIE_SECURE=true`
-- after creating the accounts you need, set `ALLOW_REGISTRATION=false`
-- restrict `ALLOWED_ORIGINS`
-- run under systemd or Docker
+| Resource | Value |
+| --- | --- |
+| EC2 | `english-tutor`, t3.small, Ubuntu 24.04, 20 GB gp3 (encrypted), 2 GB swap |
+| Elastic IP | `3.24.101.241` (point the domain's A record here) |
+| S3 | `english-tutor-tts-202226603307`, private, `tts/` expires after 30 days |
+| IAM | role / instance profile `english-tutor-ec2`: S3 access to that bucket only |
+| Security group | `english-tutor-web`: 80/443 open, 22 only from the deploying machine's IP |
+| SSH key | `~/.ssh/english-tutor.pem` (`ssh -i ~/.ssh/english-tutor.pem ubuntu@3.24.101.241`) |
+
+On the server: Caddy (`:80`, reverse proxy, automatic HTTPS once a domain is set) → uvicorn on 127.0.0.1:8000
+(systemd unit `english-tutor`, `deploy/english-tutor.service`). Code in `/opt/english-tutor` (git clone of the
+public repo), SQLite + Kokoro model in `/opt/english-tutor/data`, `.env` (mode 600) = local `.env` + production
+overrides.
+
+```sh
+make provision                    # once: AWS resources (re-run to allow SSH from a new IP)
+make bootstrap                    # once: packages, .env, first release
+git push origin main && make deploy   # every release: git reset to origin/main, uv sync, npm build, restart
+deploy/set-env.sh ALLOW_REGISTRATION=false   # change one server setting + restart
+deploy/enable-https.sh tutor.example.com     # after DNS points at the Elastic IP
+```
+
+## Production checklist
+
+- [x] systemd + Caddy, S3 audio cache, SSH restricted
+- [ ] HTTPS: `deploy/enable-https.sh <domain>` (browsers only allow the microphone on HTTPS; it also sets
+      `COOKIE_SECURE=true` and `ALLOWED_ORIGINS`)
+- [ ] after creating the accounts you need: `deploy/set-env.sh ALLOW_REGISTRATION=false`
+- [ ] backups of `/opt/english-tutor/data/app.db` (SQLite on the instance disk; none yet)
