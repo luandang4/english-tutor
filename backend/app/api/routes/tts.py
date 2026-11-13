@@ -1,0 +1,21 @@
+"""Pronunciation audio for words / example sentences (free sources, cached) — see services/speech/tts.py."""
+
+from fastapi import APIRouter, HTTPException, Query, Response
+
+from app.api.deps import CurrentUser
+from app.services.speech.tts import TTSError, synthesize
+
+router = APIRouter(prefix="/tts", tags=["tts"])
+
+
+@router.get("", response_class=Response)
+async def tts(_: CurrentUser, text: str = Query(min_length=1, max_length=300)) -> Response:
+    try:
+        audio, media_type, source = await synthesize(text.strip())
+    except TTSError as e:
+        raise HTTPException(503, str(e)) from e
+    return Response(
+        audio,
+        media_type=media_type,
+        headers={"Cache-Control": "public, max-age=86400", "X-TTS-Source": source},
+    )

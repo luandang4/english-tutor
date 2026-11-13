@@ -1,0 +1,25 @@
+# secrets
+.env
+
+# runtime data (SQLite DB, TTS cache)
+data/
+
+# python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+
+# node
+node_modules/
+frontend/dist/
+
+.DS_Store
+
+CLAUDE.md
+
+.claude/
+*.tsbuildinfo
+.vite/
+coverage/

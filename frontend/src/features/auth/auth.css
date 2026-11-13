@@ -1,0 +1,34 @@
+.auth-screen { position: relative; min-height: 100%; display: grid; place-items: center; padding: 24px 16px; }
+.auth-card {
+  position: relative; z-index: 1; width: 100%; max-width: 420px; display: flex; flex-direction: column; gap: 16px;
+  padding: 32px 28px; border-radius: 28px; background: var(--panel); border: 1px solid var(--border-strong);
+  backdrop-filter: blur(22px); box-shadow: var(--shadow);
+}
+.auth-brand { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 8px; margin-bottom: 4px; }
+.auth-brand h1 { font-size: 1.5rem; font-weight: 800; }
+.auth-logo { width: 56px; height: 56px; margin-bottom: 6px; animation: breathe 3s ease-in-out infinite; }
+.auth-submit { width: 100%; padding: 12px; font-size: 1rem; }
+.auth-swap { text-align: center; font-size: 0.9rem; }
+.auth-swap a { color: var(--primary); font-weight: 700; }
+.auth-swap a:hover { text-decoration: underline; }
+
+.user-chip {
+  display: flex; align-items: center; gap: 10px; padding: 10px; border-radius: 14px; margin-top: auto;
+  border: 1px solid var(--border); background: var(--panel); transition: border-color 0.2s;
+}
+a.user-chip:hover { border-color: var(--border-strong); }
+.avatar {
+  width: 34px; height: 34px; border-radius: 50%; flex: none; display: grid; place-items: center; font-weight: 800;
+  color: var(--on-primary); background: var(--accent-gradient);
+}
+.avatar.lg { width: 64px; height: 64px; font-size: 1.6rem; }
+.user-chip .who { min-width: 0; flex: 1; }
+.user-chip .who b, .user-chip .who small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.user-chip .who small { color: var(--muted); font-size: 0.72rem; }
+.mobile-account { display: none; }
+@media (max-width: 900px) {
+  .mobile-account { display: grid; }
+}
+@media (max-width: 900px) {
+  .hero:has(.mobile-account) h1 { padding-right: 44px; }
+}

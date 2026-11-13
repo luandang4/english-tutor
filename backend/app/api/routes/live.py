@@ -1,0 +1,243 @@
+"""WebSocket bridge: browser <-> Gemini Live voice session. Transcripts are saved to the DB.
+
+Browser <-> /ws/conversation protocol
+  client -> server
+    text   {"type": "start", "level": "B1", "scenario": "free_talk", "voice": "Kore"}  (first message)
+    binary PCM16 mono 16 kHz mic audio
+    text   {"type": "text", "text": "..."}   typed message
+    text   {"type": "stop"}
+  server -> client
+    text   {"type": "ready", "session_id": int} | {"type": "transcript", "role": "user"|"tutor", "text": "..."}
+           {"type": "interrupted"} | {"type": "turn_complete"} | {"type": "error", "message": "..."}
+    binary PCM16 mono 24 kHz tutor audio
+"""
+
+import asyncio
+import json
+import logging
+import time
+from typing import Any
+from urllib.parse import urlparse
+
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from google.genai import types
+
+from app.core.config import get_settings
+from app.db.base import utcnow
+from app.db.session import SessionLocal
+from app.models.conversation import ConversationSession
+from app.services import auth
+from app.services.ai.client import get_genai_client
+from app.services.conversation.live import INPUT_RATE, OPENING_PROMPT, LiveSettings, live_config
+
+log = logging.getLogger(__name__)
+router = APIRouter()
+_slots = asyncio.Semaphore(get_settings().max_concurrent_live_sessions)
+
+
+class Transcript:
+    """Merges streamed transcript fragments into turns."""
+
+    def __init__(self) -> None:
+        self.turns: list[dict[str, Any]] = []
+
+    def add(self, role: str, text: str) -> None:
+        if self.turns and self.turns[-1]["role"] == role and not self.turns[-1].get("closed"):
+            self.turns[-1]["text"] += text
+        else:
+            self.turns.append({"role": role, "text": text})
+
+    def close_turn(self) -> None:
+        if self.turns:
+            self.turns[-1]["closed"] = True
+
+    def export(self) -> list[dict[str, str]]:
+        return [{"role": t["role"], "text": t["text"].strip()} for t in self.turns if t["text"].strip()]
+
+
+def _origin_allowed(ws: WebSocket) -> bool:
+    """Block cross-site WebSocket hijacking: only our own page (or the Vite dev server) may connect."""
+    origin = ws.headers.get("origin")
+    if not origin:
+        return True  # non-browser clients (tests, CLI)
+    if origin in get_settings().allowed_origins:
+        return True
+    return urlparse(origin).netloc == ws.headers.get("host")
+
+
+@router.websocket("/ws/conversation")
+async def conversation_ws(ws: WebSocket) -> None:
+    if not _origin_allowed(ws):
+        await ws.close(code=1008)
+        return
+    async with SessionLocal() as db:
+        user = await auth.user_for_token(db, ws.cookies.get(get_settings().session_cookie))
+    await ws.accept()
+    if user is None:
+        await _safe_send(ws, {"type": "error", "message": "Bạn cần đăng nhập."})
+        await ws.close(code=1008)
+        return
+    try:
+        start = await ws.receive_json()
+    except (WebSocketDisconnect, json.JSONDecodeError):
+        return
+
+    if _slots.locked():
+        await _safe_send(ws, {"type": "error", "message": "Đang có quá nhiều phiên hội thoại, hãy đóng tab khác."})
+        await ws.close()
+        return
+
+    async with _slots:
+        await _run_session(ws, LiveSettings.from_dict(start), user.id)
+
+
+async def _run_session(ws: WebSocket, settings: LiveSettings, user_id: int) -> None:
+    s = get_settings()
+    client = get_genai_client()
+    transcript = Transcript()
+    started = time.monotonic()
+    async with SessionLocal() as db:
+        record = ConversationSession(
+            user_id=user_id, level=settings.level, scenario=settings.scenario, voice=settings.voice
+        )
+        db.add(record)
+        await db.commit()
+        record_id = record.id
+    log.info("conversation %s start %s", record_id, settings)
+
+    # Browser input is buffered so it survives Gemini reconnects (Live connections get GoAway after ~10 min).
+    inbox: asyncio.Queue[tuple[str, Any]] = asyncio.Queue()
+    reader = asyncio.create_task(_read_browser(ws, inbox, transcript))
+    resume: dict[str, str | None] = {"handle": None}
+    first = True
+    try:
+        async with asyncio.timeout(s.max_live_session_minutes * 60):
+            while True:
+                async with client.aio.live.connect(
+                    model=s.live_model, config=live_config(settings, resume["handle"])
+                ) as session:
+                    if first:
+                        first = False
+                        await ws.send_json({"type": "ready", "session_id": record_id})
+                        await session.send_client_content(
+                            turns=types.Content(role="user", parts=[types.Part(text=OPENING_PROMPT)]),
+                            turn_complete=True,
+                        )
+                    else:
+                        log.info("conversation %s resumed Live session", record_id)
+                    forward = asyncio.create_task(_forward(inbox, session))
+                    relay = asyncio.create_task(_relay(ws, session, resume, transcript))
+                    done, pending = await asyncio.wait({forward, relay}, return_when=asyncio.FIRST_COMPLETED)
+                    for t in pending:
+                        t.cancel()
+                    for t in done:
+                        if exc := t.exception():
+                            raise exc
+                    if relay in done and relay.result() == "go_away" and resume["handle"]:
+                        continue  # reconnect transparently with the resumption handle
+                    break  # learner stopped / disconnected
+    except TimeoutError:
+        await _safe_send(
+            ws, {"type": "error", "message": f"Buổi học đã đạt giới hạn {s.max_live_session_minutes} phút."}
+        )
+    except WebSocketDisconnect:
+        pass
+    except Exception as e:  # surface provider errors (quota, 503, ...) to the UI
+        log.exception("conversation %s error", record_id)
+        await _safe_send(ws, {"type": "error", "message": f"{type(e).__name__}: {e}"[:500]})
+    finally:
+        reader.cancel()
+        await _save(record_id, transcript, int(time.monotonic() - started))
+        try:
+            await ws.close()
+        except RuntimeError:
+            pass
+
+
+async def _save(record_id: int, transcript: Transcript, duration: int) -> None:
+    turns = transcript.export()
+    async with SessionLocal() as db:
+        record = await db.get(ConversationSession, record_id)
+        if record is None:
+            return
+        if not any(t["role"] == "user" for t in turns):
+            await db.delete(record)  # learner never spoke: don't clutter history
+        else:
+            record.transcript = turns
+            record.turns = sum(1 for t in turns if t["role"] == "user")
+            record.duration_seconds = duration
+            record.ended_at = utcnow()
+        await db.commit()
+    log.info("conversation %s end (%ss, %d turns)", record_id, duration, len(turns))
+
+
+async def _read_browser(ws: WebSocket, inbox: asyncio.Queue, transcript: Transcript) -> None:
+    try:
+        while True:
+            msg = await ws.receive()
+            if msg["type"] == "websocket.disconnect":
+                break
+            if msg.get("bytes"):
+                await inbox.put(("audio", msg["bytes"]))
+            elif msg.get("text"):
+                data = json.loads(msg["text"])
+                if data.get("type") == "stop":
+                    break
+                text = str(data.get("text", "")).strip()[:1000]
+                if data.get("type") == "text" and text:
+                    transcript.close_turn()
+                    transcript.add("user", text)
+                    transcript.close_turn()
+                    await inbox.put(("text", text))
+    except (WebSocketDisconnect, RuntimeError, json.JSONDecodeError):
+        pass
+    finally:
+        await inbox.put(("stop", None))
+
+
+async def _forward(inbox: asyncio.Queue, session: Any) -> None:
+    mime = f"audio/pcm;rate={INPUT_RATE}"
+    while True:
+        kind, payload = await inbox.get()
+        if kind == "stop":
+            return
+        if kind == "audio":
+            await session.send_realtime_input(audio=types.Blob(data=payload, mime_type=mime))
+        else:
+            await session.send_client_content(
+                turns=types.Content(role="user", parts=[types.Part(text=payload)]), turn_complete=True
+            )
+
+
+async def _relay(ws: WebSocket, session: Any, resume: dict, transcript: Transcript) -> str:
+    while True:  # session.receive() ends after each turn_complete
+        async for m in session.receive():
+            if m.data:
+                await ws.send_bytes(m.data)
+            sc = m.server_content
+            if sc:
+                if sc.input_transcription and sc.input_transcription.text:
+                    transcript.add("user", sc.input_transcription.text)
+                    await ws.send_json({"type": "transcript", "role": "user", "text": sc.input_transcription.text})
+                if sc.output_transcription and sc.output_transcription.text:
+                    transcript.add("tutor", sc.output_transcription.text)
+                    await ws.send_json({"type": "transcript", "role": "tutor", "text": sc.output_transcription.text})
+                if sc.interrupted:
+                    transcript.close_turn()
+                    await ws.send_json({"type": "interrupted"})
+                if sc.turn_complete:
+                    transcript.close_turn()
+                    await ws.send_json({"type": "turn_complete"})
+            upd = m.session_resumption_update
+            if upd and upd.resumable and upd.new_handle:
+                resume["handle"] = upd.new_handle
+            if m.go_away:
+                log.info("GoAway received (time left %s)", m.go_away.time_left)
+                return "go_away"
+
+
+async def _safe_send(ws: WebSocket, payload: dict) -> None:
+    try:
+        await ws.send_json(payload)
+    except Exception:
+        pass
