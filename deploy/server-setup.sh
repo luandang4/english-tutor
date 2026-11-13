@@ -19,6 +19,8 @@ if ! command -v node >/dev/null || ! node --version | grep -q '^v22'; then
   curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
   sudo apt-get install -yq nodejs
 fi
+# same npm major as development, so `npm ci` accepts package-lock.json
+npm --version | grep -q '^11\.' || sudo npm install -g --silent npm@11
 
 # Caddy (reverse proxy + automatic HTTPS later)
 if ! command -v caddy >/dev/null; then
