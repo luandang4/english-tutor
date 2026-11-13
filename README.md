@@ -44,7 +44,7 @@ topics are seeded. Open the app, choose **Đăng ký** and create an account. Th
 automatically receives any data created before accounts existed. To stop anyone else signing up, set
 `ALLOW_REGISTRATION=false` in `.env`.
 
-**Production:** deployed on AWS EC2 (http://3.24.101.241) with `make deploy` after pushing `main`.
+**Production:** https://english-tutor.us.ci on AWS EC2, released with `make deploy` after pushing `main`.
 Infrastructure, scripts and the HTTPS step are in `docs/TECHSTACK.md` → *Deployment*.
 
 Every lesson has a **"Tạo bài tập mới"** button: Gemini writes a new exercise set on the same content

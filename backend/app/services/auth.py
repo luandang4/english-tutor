@@ -38,8 +38,14 @@ def normalize_email(email: str) -> str:
 
 
 async def register(session: AsyncSession, *, email: str, password: str, display_name: str) -> User:
+    """Self-service sign-up from the web (only while ALLOW_REGISTRATION is on)."""
     if not get_settings().allow_registration:
         raise AuthError("Đăng ký tài khoản mới đang tắt.", 403)
+    return await create_user(session, email=email, password=password, display_name=display_name)
+
+
+async def create_user(session: AsyncSession, *, email: str, password: str, display_name: str) -> User:
+    """Create an account (also used by scripts/create_user.py when web sign-up is closed)."""
     email = normalize_email(email)
     if await session.scalar(select(User.id).where(User.email == email)):
         raise AuthError("Email này đã được đăng ký.", 409)

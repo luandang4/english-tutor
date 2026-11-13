@@ -2,5 +2,20 @@
 # then Caddy fetches and renews a Let's Encrypt certificate automatically.
 {$SITE_ADDRESS} {
 	encode zstd gzip
+
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "microphone=(self), camera=(), geolocation=()"
+		-Server
+	}
+
+	# 1 MB is plenty: the largest request is a ~30 s pronunciation recording (PCM16 16 kHz ≈ 960 KB).
+	request_body {
+		max_size 1MB
+	}
+
 	reverse_proxy 127.0.0.1:8000
 }

@@ -4,7 +4,7 @@ export AWS_REGION=ap-southeast-2
 export AWS_DEFAULT_REGION=$AWS_REGION
 
 APP=english-tutor
-ACCOUNT_ID=202226603307
+ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
 BUCKET=$APP-tts-$ACCOUNT_ID
 INSTANCE_TYPE=t3.small                   # 2 vCPU / 2 GB (+2 GB swap): Kokoro TTS + FastAPI
 KEY_NAME=$APP

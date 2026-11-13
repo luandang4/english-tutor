@@ -18,6 +18,10 @@ npm install --no-audit --no-fund --no-save --loglevel=error
 npm run -s build
 
 sudo cp /opt/english-tutor/deploy/english-tutor.service /etc/systemd/system/english-tutor.service
+if ! sudo cmp -s /opt/english-tutor/deploy/Caddyfile /etc/caddy/Caddyfile; then
+  sudo cp /opt/english-tutor/deploy/Caddyfile /etc/caddy/Caddyfile
+  sudo systemctl reload caddy
+fi
 sudo systemctl daemon-reload
 sudo systemctl restart english-tutor
 for _ in $(seq 1 60); do

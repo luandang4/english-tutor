@@ -170,13 +170,13 @@ Everything is scripted in `deploy/` (AWS profile `new-frontiers`, region `ap-sou
 | Resource | Value |
 | --- | --- |
 | EC2 | `english-tutor`, t3.small, Ubuntu 24.04, 20 GB gp3 (encrypted), 2 GB swap |
-| Elastic IP | `3.24.101.241` (point the domain's A record here) |
-| S3 | `english-tutor-tts-202226603307`, private, `tts/` expires after 30 days |
+| Domain | https://english-tutor.us.ci (A record → the instance's Elastic IP, tag `english-tutor`) |
+| S3 | `english-tutor-tts-<account id>`, private (Block Public Access), `tts/` expires after 30 days |
 | IAM | role / instance profile `english-tutor-ec2`: S3 access to that bucket only |
 | Security group | `english-tutor-web`: 80/443 open, 22 only from the deploying machine's IP |
-| SSH key | `~/.ssh/english-tutor.pem` (`ssh -i ~/.ssh/english-tutor.pem ubuntu@3.24.101.241`) |
+| SSH key | `~/.ssh/english-tutor.pem` (never committed; `ssh -i ~/.ssh/english-tutor.pem ubuntu@english-tutor.us.ci`) |
 
-On the server: Caddy (`:80`, reverse proxy, automatic HTTPS once a domain is set) → uvicorn on 127.0.0.1:8000
+On the server: Caddy (HTTPS via Let's Encrypt, security headers, 1 MB body limit, `deploy/Caddyfile`) → uvicorn on 127.0.0.1:8000
 (systemd unit `english-tutor`, `deploy/english-tutor.service`). Code in `/opt/english-tutor` (git clone of the
 public repo), SQLite + Kokoro model in `/opt/english-tutor/data`, `.env` (mode 600) = local `.env` + production
 overrides.
@@ -186,13 +186,22 @@ make provision                    # once: AWS resources (re-run to allow SSH fro
 make bootstrap                    # once: packages, .env, first release
 git push origin main && make deploy   # every release: git reset to origin/main, uv sync, npm build, restart
 deploy/set-env.sh ALLOW_REGISTRATION=false   # change one server setting + restart
+deploy/create-user.sh you@example.com "Name"  # add an account while web sign-up is closed
 deploy/enable-https.sh tutor.example.com     # after DNS points at the Elastic IP
 ```
+
+## Public repository hygiene
+
+The GitHub repo is public, so it must never contain: `.env` / API keys, `*.pem` / SSH keys, the SQLite DB,
+`data/`, AWS account IDs or access keys. `.gitignore` covers these; deploy scripts look the account ID up at
+runtime (`aws sts get-caller-identity`) and the server gets AWS access from its instance role only.
+Knowing the code does not grant access: sign-up is closed, logins are rate limited, every API route needs a
+session cookie, and SSH only accepts the deploy key from one IP.
 
 ## Production checklist
 
 - [x] systemd + Caddy, S3 audio cache, SSH restricted
-- [ ] HTTPS: `deploy/enable-https.sh <domain>` (browsers only allow the microphone on HTTPS; it also sets
-      `COOKIE_SECURE=true` and `ALLOWED_ORIGINS`)
-- [ ] after creating the accounts you need: `deploy/set-env.sh ALLOW_REGISTRATION=false`
+- [x] HTTPS (`deploy/enable-https.sh english-tutor.us.ci`): `COOKIE_SECURE=true`, `ALLOWED_ORIGINS` = the domain
+- [x] `API_DOCS=false` (no `/docs`, `/openapi.json`)
+- [x] web sign-up closed (`ALLOW_REGISTRATION=false`); accounts are added with `deploy/create-user.sh`
 - [ ] backups of `/opt/english-tutor/data/app.db` (SQLite on the instance disk; none yet)

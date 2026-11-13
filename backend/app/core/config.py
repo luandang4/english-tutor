@@ -51,6 +51,7 @@ class Settings(BaseSettings):
     timezone: str = "Asia/Ho_Chi_Minh"
 
     # --- accounts ---------------------------------------------------------
+    api_docs: bool = True  # /docs + /openapi.json; turn off in production
     allow_registration: bool = True
     session_days: int = 30
     session_cookie: str = "et_session"

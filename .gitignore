@@ -1,8 +1,17 @@
-# secrets
+# secrets (public repo: never commit keys, certificates or env files)
 .env
+.env.*
+!.env.example
+*.pem
+*.key
+id_*
+*.p12
 
 # runtime data (SQLite DB, TTS cache)
 data/
+*.db
+*.db-*
+*.sqlite*
 
 # python
 .venv/

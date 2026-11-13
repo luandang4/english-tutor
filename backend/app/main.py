@@ -52,7 +52,15 @@ async def lifespan(_: FastAPI):
 
 def create_app() -> FastAPI:
     settings = get_settings()
-    app = FastAPI(title="AI English Tutor", version="0.2.0", lifespan=lifespan)
+    docs = settings.api_docs
+    app = FastAPI(
+        title="AI English Tutor",
+        version="0.2.0",
+        lifespan=lifespan,
+        docs_url="/docs" if docs else None,
+        redoc_url=None,
+        openapi_url="/openapi.json" if docs else None,
+    )
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.allowed_origins,
