@@ -6,8 +6,8 @@ import { ErrorBox, Icon, Loading, type IconName } from '../../components/ui'
 import { SKILL_LABEL, scoreTone, timeAgo } from '../../lib/format'
 
 const QUICK: { to: string; icon: IconName; title: string; text: string; color: string }[] = [
-  { to: '/conversation', icon: 'mic', title: 'Hội thoại', text: 'Nói chuyện với Emma bằng giọng nói', color: '#ff9466' },
-  { to: '/vocabulary', icon: 'book', title: 'Từ vựng', text: 'Học 10 từ mới theo chủ đề', color: '#ffd54a' },
+  { to: '/conversation', icon: 'mic', title: 'Hội thoại', text: 'Nói chuyện với Emma bằng giọng nói', color: '#ff7ac8' },
+  { to: '/vocabulary', icon: 'book', title: 'Từ vựng', text: 'Học 10 từ mới theo chủ đề', color: '#b794ff' },
   { to: '/grammar', icon: 'grammar', title: 'Ngữ pháp', text: 'Giải thích dễ hiểu + bài tập', color: '#5ef0ff' },
   { to: '/writing', icon: 'pen', title: 'Luyện viết', text: 'AI ra đề và chấm chi tiết', color: '#ff8fab' },
 ]

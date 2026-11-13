@@ -34,7 +34,7 @@ one retry, then the next model.
 | Pronunciation audio | `services/speech/tts.py`, a source chain configured by `TTS_WORD_SOURCES` / `TTS_SENTENCE_SOURCES`. Words: **gTTS** ([pndurette/gTTS](https://github.com/pndurette/gTTS), the Google Translate voice; unofficial endpoint, free; consistent dictionary-style reading) → **Wiktionary recordings** (human volunteer recordings, CC-licensed; intonation varies, e.g. a rising "season") → **Kokoro-82M** ([kokoro-onnx](https://github.com/thewh1teagle/kokoro-onnx), local CPU; it mis-stresses isolated words, so it is the last resort for words). Sentences: Kokoro → gTTS. Results are cached in `data/tts/`, and a new vocabulary lesson's words are prefetched in the background. On Intel Macs onnxruntime is pinned below 1.24 (the last release with macOS x86_64 wheels). The browser's built-in voice is used if everything fails |
 | Background jobs | in-process asyncio tasks (`services/tasks.py`). Jobs interrupted by a restart are marked failed on boot |
 | Frontend | **React 19 + TypeScript (strict) + Vite**, React Router (lazy routes), TanStack Query |
-| Styling | hand-written CSS design tokens (pastel sunny yellow primary, neon coral accent, cyan for the learner), dark/light via `prefers-color-scheme`. Components only use semantic tokens (`--primary`, `--accent`, `--cool`, …) |
+| Styling | hand-written CSS design tokens (pastel purple primary, neon pink accent, cyan for the learner), dark/light via `prefers-color-scheme`. Components only use semantic tokens (`--primary`, `--accent`, `--cool`, …) |
 | Audio | AudioWorklet → PCM16 16 kHz (mic); WebAudio playback 24 kHz; canvas orb visualizer |
 | Tooling | uv, ruff, pytest (fake Gemini, no quota), oxlint, `tsc -b` |
 

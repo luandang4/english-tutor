@@ -61,15 +61,15 @@
 .mic {
   position: relative; flex: none; width: 68px; height: 68px; border-radius: 50%; border: 0; cursor: pointer;
   display: grid; place-items: center; color: var(--on-primary);
-  background: radial-gradient(circle at 30% 25%, #fff3c4, var(--primary) 55%, #d99a00);
-  box-shadow: 0 8px 28px rgba(255, 213, 74, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.2) inset;
+  background: radial-gradient(circle at 30% 25%, #efe4ff, var(--primary) 55%, #7d4be0);
+  box-shadow: 0 8px 28px rgba(183, 148, 255, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.2) inset;
   transition: transform 0.15s, box-shadow 0.3s, background 0.3s;
 }
-.mic:hover { transform: scale(1.05); box-shadow: 0 10px 36px rgba(255, 148, 102, 0.55); }
+.mic:hover { transform: scale(1.05); box-shadow: 0 10px 36px rgba(255, 122, 200, 0.55); }
 .mic:active { transform: scale(0.97); }
 .mic:disabled { opacity: 0.6; cursor: progress; }
 .mic svg { width: 28px; height: 28px; position: relative; z-index: 1; }
-.mic.stop { background: radial-gradient(circle at 30% 25%, #ffd6c2, var(--accent) 55%, #d85a2a); color: #fff; box-shadow: 0 8px 28px rgba(255, 148, 102, 0.55); }
+.mic.stop { background: radial-gradient(circle at 30% 25%, #ffd0ec, var(--accent) 55%, #d4399c); color: #fff; box-shadow: 0 8px 28px rgba(255, 122, 200, 0.55); }
 .mic-ring { position: absolute; inset: -6px; border-radius: 50%; border: 2px solid var(--cool); opacity: 0; pointer-events: none; transition: transform 0.08s, opacity 0.2s; }
 .mic-hint { color: var(--muted); font-size: 0.85rem; white-space: nowrap; }
 .text-form { flex: 1; min-width: 0; display: flex; gap: 8px; padding: 6px; border-radius: 999px; background: var(--panel); border: 1px solid var(--border); backdrop-filter: blur(12px); transition: border-color 0.2s, box-shadow 0.2s; }
