@@ -260,15 +260,18 @@ export interface WritingTaskDetail extends WritingTaskSummary {
 }
 
 // ---------- pronunciation ----------
+export type PronunciationEngine = 'azure' | 'local'
 export interface PronunciationResult {
   id: number
   reference_text: string
   recognized_text: string
   pron_score: number
   accuracy: number
-  fluency: number
+  fluency: number | null
   completeness: number
   prosody: number | null
+  /** azure = Azure Speech; local = free on-server phoneme model (an estimate). */
+  engine: PronunciationEngine
   words: { word: string; score: number; error_type: string; phonemes: { phoneme: string; score: number }[] }[]
 }
 
@@ -291,9 +294,10 @@ export interface TurnPronunciation {
   text: string
   score: number
   accuracy: number
-  fluency: number
+  fluency: number | null
   prosody: number | null
   weak_words: { word: string; score: number; error_type: string }[]
+  engine?: PronunciationEngine
 }
 
 export interface ConversationTurn {

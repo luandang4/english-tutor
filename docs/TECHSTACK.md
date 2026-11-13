@@ -12,6 +12,16 @@ New AI features default to Gemini. All non-speech Gemini calls go through
 `backend/app/services/ai/client.py` (model fallback chain), and all Azure calls go through
 `backend/app/services/speech/azure.py`. Switching provider only touches these two modules.
 
+### Experimental: local pronunciation engine (branch `feat/local-phoneme-scoring`)
+
+`PRONUNCIATION_ENGINE=azure|local|auto` (`services/speech/assessment.py`). `local` scores on the server with
+`facebook/wav2vec2-lv-60-espeak-cv-ft` (Apache-2.0, ONNX int8, `services/speech/phoneme.py`): espeak gives the
+expected phonemes, CTC forced alignment finds them in the audio, the phoneme score is the model's posterior
+(accent variants such as /ɔː/~/ɑː/ and flapped t accepted). Free, ~0.3–0.7 s per sentence on CPU, ~800 MB RAM
+while loaded (loaded on first use, freed after `PHONEME_IDLE_UNLOAD_SECONDS`). Scores are an **estimate** and the
+UI says so; `auto` keeps Azure and only falls back when Azure itself is unavailable. This extends the vendor rule
+above: pronunciation = Azure, optionally the local model.
+
 ## Gemini models (configurable in `.env`)
 
 | Task | Default chain (tried in order) | Why |

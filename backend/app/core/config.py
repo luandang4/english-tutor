@@ -35,6 +35,11 @@ class Settings(BaseSettings):
     # Kokoro-82M (local, offline)
     tts_model_path: Path = DATA_DIR / "models" / "kokoro-v1.0.onnx"
     tts_voices_path: Path = DATA_DIR / "models" / "voices-v1.0.bin"
+    pronunciation_engine: Literal["azure", "local", "auto"] = "azure"  # see services/speech/assessment.py
+    phoneme_model_path: Path = DATA_DIR / "models" / "wav2vec2-phoneme-int8.onnx"
+    phoneme_vocab_path: Path = DATA_DIR / "models" / "wav2vec2-phoneme-vocab.json"
+    phoneme_threads: int = 2
+    phoneme_idle_unload_seconds: int = 600  # free the ~800 MB model after this long without use
     tts_storage: Literal["local", "s3"] = "local"  # where generated audio is cached
     tts_s3_bucket: str = ""
     tts_s3_prefix: str = "tts/"

@@ -18,7 +18,9 @@ MAX_SECONDS = 30
 
 
 class PronunciationError(RuntimeError):
-    pass
+    def __init__(self, message: str, service_issue: bool = False) -> None:
+        super().__init__(message)
+        self.service_issue = service_issue  # Azure itself unavailable (quota, key, network): a fallback may help
 
 
 @dataclass
@@ -34,10 +36,11 @@ class Assessment:
     recognized_text: str
     pron_score: float
     accuracy: float
-    fluency: float
+    fluency: float | None
     completeness: float
     prosody: float | None
     words: list[WordScore]
+    engine: str = "azure"  # "azure" | "local" (estimate)
 
 
 def pcm16_to_wav(pcm: bytes, rate: int = SAMPLE_RATE) -> bytes:
@@ -84,7 +87,7 @@ def parse_response(data: dict[str, Any]) -> Assessment:
 async def assess(pcm16: bytes, reference_text: str) -> Assessment:
     s = get_settings()
     if not s.azure_enabled:
-        raise PronunciationError("Chưa cấu hình Azure Speech (AZURE_SPEECH_KEY).")
+        raise PronunciationError("Chưa cấu hình Azure Speech (AZURE_SPEECH_KEY).", service_issue=True)
     if len(pcm16) < SAMPLE_RATE * 2 * 0.3:
         raise PronunciationError("Đoạn ghi âm quá ngắn.")
     if len(pcm16) > SAMPLE_RATE * 2 * MAX_SECONDS:
@@ -112,11 +115,13 @@ async def assess(pcm16: bytes, reference_text: str) -> Assessment:
         async with httpx.AsyncClient(timeout=30) as client:
             resp = await client.post(url, headers=headers, content=pcm16_to_wav(pcm16))
     except httpx.HTTPError as e:
-        raise PronunciationError("Không kết nối được Azure Speech.") from e
+        raise PronunciationError("Không kết nối được Azure Speech.", service_issue=True) from e
     if resp.status_code == 401:
-        raise PronunciationError("Azure Speech key không hợp lệ.")
-    if resp.status_code == 429:
-        raise PronunciationError("Azure Speech đã hết quota hoặc đang giới hạn tốc độ, thử lại sau.")
+        raise PronunciationError("Azure Speech key không hợp lệ.", service_issue=True)
+    if resp.status_code in (403, 429):
+        raise PronunciationError(
+            "Azure Speech đã hết quota hoặc đang giới hạn tốc độ, thử lại sau.", service_issue=True
+        )
     if resp.status_code >= 400:
-        raise PronunciationError(f"Azure Speech lỗi {resp.status_code}.")
+        raise PronunciationError(f"Azure Speech lỗi {resp.status_code}.", service_issue=True)
     return parse_response(resp.json())

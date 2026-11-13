@@ -13,7 +13,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from app.services.speech import azure
+from app.services.speech import assessment, azure
 
 log = logging.getLogger(__name__)
 
@@ -83,18 +83,20 @@ class TurnPronunciation:
     text: str
     score: float
     accuracy: float
-    fluency: float
+    fluency: float | None
     prosody: float | None
-    weak_words: list[dict]  # [{"word", "score", "error_type"}]
+    weak_words: list[dict]
+    engine: str = "azure"  # [{"word", "score", "error_type"}]
 
     def to_dict(self) -> dict:
         return {
             "text": self.text,
             "score": round(self.score),
             "accuracy": round(self.accuracy),
-            "fluency": round(self.fluency),
+            "fluency": None if self.fluency is None else round(self.fluency),
             "prosody": None if self.prosody is None else round(self.prosody),
             "weak_words": self.weak_words,
+            "engine": self.engine,
         }
 
 
@@ -106,7 +108,7 @@ async def assess_turn(pcm: bytes, transcript: str) -> TurnPronunciation | None:
     speech = trim_silence(pcm)
     if not MIN_SECONDS * BYTES_PER_SECOND <= len(speech) <= azure.MAX_SECONDS * BYTES_PER_SECOND:
         return None
-    result = await azure.assess(speech, text)
+    result = await assessment.assess(speech, text)
     weak = [
         {"word": w.word, "score": round(w.score), "error_type": w.error_type}
         for w in result.words
@@ -119,6 +121,7 @@ async def assess_turn(pcm: bytes, transcript: str) -> TurnPronunciation | None:
         accuracy=result.accuracy,
         fluency=result.fluency,
         prosody=result.prosody,
+        engine=result.engine,
         weak_words=weak[:MAX_WEAK_WORDS],
     )
 
@@ -126,10 +129,12 @@ async def assess_turn(pcm: bytes, transcript: str) -> TurnPronunciation | None:
 def tutor_note(p: TurnPronunciation) -> str:
     """Compact, factual message for the tutor model (see PRONUNCIATION_WITH_DATA in tutor.py)."""
     weak = ", ".join(f"'{w['word']}' {w['score']}/100" for w in p.weak_words) or "none"
+    fluency = "" if p.fluency is None else f", fluency {round(p.fluency)}"
     prosody = "" if p.prosody is None else f", intonation {round(p.prosody)}"
+    source = "estimate from a phoneme model" if p.engine == "local" else "Azure"
     return (
         f'[Pronunciation data] Learner\'s last turn "{p.text}": overall {round(p.score)}/100 '
-        f"(accuracy {round(p.accuracy)}, fluency {round(p.fluency)}{prosody}). Weak words: {weak}. "
+        f"(accuracy {round(p.accuracy)}{fluency}{prosody}; {source}). Weak words: {weak}. "
         "Use this in your next reply only if it helps; do not answer this message on its own."
     )
 
