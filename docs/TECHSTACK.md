@@ -62,7 +62,7 @@ Browser (React SPA)
 - **Writing scores** are recomputed server-side as the mean of the four criteria. Corrections that
   can't be located in the learner's text are dropped, so highlighting always works.
 
-## Audio cache and voice options
+## Audio cache and options
 
 - `data/tts/` caches every generated word / sentence audio (name = hash + source + extension). A background loop
   (hourly, and at startup) deletes files older than `TTS_CACHE_MAX_DAYS` (30) and then the oldest files until the
@@ -71,8 +71,8 @@ Browser (React SPA)
   Translate, human recording (Wiktionary), Kokoro. `GET /api/tts?source=...` puts the choice first and keeps the
   default chain as fallback.
 - Conversation: "Đeo tai nghe" on = mic stays open while Emma speaks (barge-in); off = the client pauses the mic
-  while she speaks. "Nghe thử" plays a short Gemini Live sample of the chosen voice
-  (`GET /api/conversations/voice-preview`), generated once per voice and cached.
+  while she speaks.
+- The tutor always uses the Gemini voice `Kore` (no voice picker).
 
 ## Accounts & data isolation
 

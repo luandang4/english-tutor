@@ -6,7 +6,6 @@ const OUT_RATE = 24_000
 export interface LiveSettings {
   level: string
   scenario: string
-  voice: string
 }
 
 export interface LiveCallbacks {

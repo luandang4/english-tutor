@@ -2,7 +2,7 @@
 
 Browser <-> /ws/conversation protocol
   client -> server
-    text   {"type": "start", "level": "B1", "scenario": "free_talk", "voice": "Kore"}  (first message)
+    text   {"type": "start", "level": "B1", "scenario": "free_talk"}  (first message)
     binary PCM16 mono 16 kHz mic audio
     text   {"type": "text", "text": "..."}   typed message
     text   {"type": "stop"}
@@ -28,7 +28,7 @@ from app.db.session import SessionLocal
 from app.models.conversation import ConversationSession
 from app.services import auth
 from app.services.ai.client import get_genai_client
-from app.services.conversation.live import INPUT_RATE, OPENING_PROMPT, LiveSettings, live_config
+from app.services.conversation.live import INPUT_RATE, OPENING_PROMPT, VOICE, LiveSettings, live_config
 
 log = logging.getLogger(__name__)
 router = APIRouter()
@@ -97,9 +97,7 @@ async def _run_session(ws: WebSocket, settings: LiveSettings, user_id: int) -> N
     transcript = Transcript()
     started = time.monotonic()
     async with SessionLocal() as db:
-        record = ConversationSession(
-            user_id=user_id, level=settings.level, scenario=settings.scenario, voice=settings.voice
-        )
+        record = ConversationSession(user_id=user_id, level=settings.level, scenario=settings.scenario, voice=VOICE)
         db.add(record)
         await db.commit()
         record_id = record.id

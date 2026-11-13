@@ -50,7 +50,6 @@ class Option(BaseModel):
 class MetaOut(BaseModel):
     levels: list[Option]
     scenarios: list[Option]
-    voices: list[str]
     pronunciation_enabled: bool
 
 

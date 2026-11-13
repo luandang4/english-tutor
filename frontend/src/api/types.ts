@@ -21,7 +21,6 @@ export interface Option {
 export interface Meta {
   levels: Option[]
   scenarios: Option[]
-  voices: string[]
   pronunciation_enabled: boolean
 }
 

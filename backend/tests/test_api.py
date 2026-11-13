@@ -125,7 +125,3 @@ def test_azure_response_parsing() -> None:
     }
     a = parse_response(data)
     assert (a.pron_score, a.prosody, a.words[0].phonemes[0]["score"]) == (88, None, 70)
-
-
-def test_voice_preview_rejects_unknown_voice(client) -> None:
-    assert client.get("/api/conversations/voice-preview?voice=Nope").status_code == 503

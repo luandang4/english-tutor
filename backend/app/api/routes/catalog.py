@@ -8,7 +8,7 @@ from app.core.config import get_settings
 from app.core.constants import Skill
 from app.models.topic import Topic
 from app.schemas.api import MetaOut, Option, TopicOut, level_options
-from app.services.conversation.live import SCENARIOS, VOICES
+from app.services.conversation.live import SCENARIOS
 
 router = APIRouter(tags=["catalog"])
 
@@ -23,7 +23,6 @@ async def meta() -> MetaOut:
     return MetaOut(
         levels=level_options(),
         scenarios=[Option(value=k, label=v["label"]) for k, v in SCENARIOS.items()],
-        voices=VOICES,
         pronunciation_enabled=get_settings().azure_enabled,
     )
 

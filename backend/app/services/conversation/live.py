@@ -40,7 +40,7 @@ SCENARIOS: dict[str, dict[str, str]] = {
     },
 }
 
-VOICES = ["Kore", "Puck", "Aoede", "Charon"]
+VOICE = "Kore"  # the one tutor voice used everywhere
 
 OPENING_PROMPT = "(The learner just joined. Greet them briefly and start the lesson.)"
 
@@ -49,14 +49,12 @@ OPENING_PROMPT = "(The learner just joined. Greet them briefly and start the les
 class LiveSettings:
     level: str = "B1"
     scenario: str = "free_talk"
-    voice: str = "Kore"
 
     @classmethod
     def from_dict(cls, d: dict) -> "LiveSettings":
         return cls(
             level=d.get("level") if d.get("level") in LEVELS else "B1",
             scenario=d.get("scenario") if d.get("scenario") in SCENARIOS else "free_talk",
-            voice=d.get("voice") if d.get("voice") in VOICES else "Kore",
         )
 
 
@@ -84,7 +82,7 @@ def live_config(s: LiveSettings, resume_handle: str | None = None) -> types.Live
         response_modalities=[types.Modality.AUDIO],
         system_instruction=system_prompt(s),
         speech_config=types.SpeechConfig(
-            voice_config=types.VoiceConfig(prebuilt_voice_config=types.PrebuiltVoiceConfig(voice_name=s.voice))
+            voice_config=types.VoiceConfig(prebuilt_voice_config=types.PrebuiltVoiceConfig(voice_name=VOICE))
         ),
         input_audio_transcription=types.AudioTranscriptionConfig(),
         output_audio_transcription=types.AudioTranscriptionConfig(),

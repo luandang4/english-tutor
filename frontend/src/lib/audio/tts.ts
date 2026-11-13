@@ -45,9 +45,3 @@ export async function playText(text: string): Promise<void> {
   const url = `/api/tts?text=${encodeURIComponent(text)}&source=${getAudioSource()}&v=${AUDIO_VERSION}`
   if (!(await playUrl(url))) await browserSpeak(text)
 }
-
-/** Sample of a Gemini tutor voice (no browser-speech fallback: it would not sound like that voice). */
-export async function playVoicePreview(voice: string): Promise<void> {
-  if (!(await playUrl(`/api/conversations/voice-preview?voice=${encodeURIComponent(voice)}`)))
-    throw new Error('Không phát được giọng mẫu. Thử lại sau vài giây.')
-}

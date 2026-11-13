@@ -54,7 +54,7 @@ async def read_turn(ws, label, t0):
 async def main():
     async with websockets.connect(URL, max_size=None, additional_headers={"Cookie": login_cookie()}) as ws:
         t0 = time.perf_counter()
-        await ws.send(json.dumps({"type": "start", "level": "A2", "scenario": "free_talk", "voice": "Puck"}))
+        await ws.send(json.dumps({"type": "start", "level": "A2", "scenario": "free_talk"}))
         assert json.loads(await ws.recv())["type"] == "ready"
         print(f"[ready] {time.perf_counter() - t0:.2f}s")
         await read_turn(ws, "greeting", t0)

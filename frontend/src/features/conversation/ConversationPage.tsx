@@ -3,9 +3,8 @@ import { Link } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 
 import { keys, useMeta } from '../../api/hooks'
-import { Icon, Spinner } from '../../components/ui'
+import { Icon } from '../../components/ui'
 import { LiveSession } from '../../lib/audio/live-session'
-import { playVoicePreview } from '../../lib/audio/tts'
 import { useLevel, usePreference } from '../../lib/preferences'
 import { Orb, type OrbMode } from '../../orb/orb'
 import './conversation.css'
@@ -38,12 +37,10 @@ export function ConversationPage() {
   const qc = useQueryClient()
   const [level, setLevel] = useLevel()
   const [scenario, setScenario] = usePreference('et.convo.scenario', 'free_talk')
-  const [voice, setVoice] = usePreference('et.convo.voice', 'Kore')
   // Headphones on: the mic stays open while Emma talks (you can interrupt). Off: the mic is paused while she
   // speaks, so speaker sound is not picked up as the learner's voice.
   const [headphones, setHeadphones] = usePreference('et.convo.headphones', false)
   const halfDuplex = !headphones
-  const [previewing, setPreviewing] = useState<'idle' | 'loading' | 'error'>('idle')
 
   const [mode, setMode] = useState<OrbMode>('idle')
   const [running, setRunning] = useState(false)
@@ -150,7 +147,7 @@ export function ConversationPage() {
     session.halfDuplex = halfDuplex
     sessionRef.current = session
     try {
-      await session.start({ level, scenario, voice })
+      await session.start({ level, scenario })
     } catch (e) {
       push('error', `Không truy cập được micro: ${e instanceof Error ? e.message : e}`)
       session.stop()
@@ -158,14 +155,6 @@ export function ConversationPage() {
   }
 
   const stop = () => sessionRef.current?.stop()
-
-  const testVoice = () => {
-    setPreviewing('loading')
-    playVoicePreview(voice).then(
-      () => setPreviewing('idle'),
-      () => setPreviewing('error'),
-    )
-  }
 
   const send = (e: { preventDefault(): void }) => {
     e.preventDefault()
@@ -184,7 +173,6 @@ export function ConversationPage() {
       <div className="convo-head">
         <div>
           <h1>Hội thoại với Emma</h1>
-          <p className="small muted">Nói chuyện bằng giọng nói trong tình huống thực tế · Gemini Live</p>
         </div>
         <div className="row">
           <Link to="/conversation/history" className="btn sm ghost">
@@ -232,31 +220,11 @@ export function ConversationPage() {
                 ))}
               </select>
             </label>
-            <div className="field">
-              <label htmlFor="voice-select">Giọng</label>
-              <div className="voice-pick">
-                <select id="voice-select" className="select" value={voice} onChange={(e) => setVoice(e.target.value)}>
-                  {meta?.voices.map((v) => (
-                    <option key={v}>{v}</option>
-                  ))}
-                </select>
-                <button
-                  type="button"
-                  className="btn sm"
-                  onClick={testVoice}
-                  disabled={previewing === 'loading'}
-                  title={previewing === 'error' ? 'Không phát được, bấm để thử lại' : 'Nghe thử giọng này'}
-                >
-                  {previewing === 'loading' ? <Spinner small /> : <Icon name="volume" size={16} />} Nghe thử
-                </button>
-              </div>
-              {previewing === 'error' && <small className="voice-error">Không tạo được giọng mẫu, thử lại.</small>}
-            </div>
             <label className="toggle">
               <input type="checkbox" checked={headphones} onChange={(e) => setHeadphones(e.target.checked)} />
               <span className="switch" aria-hidden="true" />
               <span>
-                Đeo tai nghe <small>Bật nếu đang đeo tai nghe để có thể ngắt lời Emma. Tắt thì mic tự tạm ngắt khi Emma nói.</small>
+                Đeo tai nghe
               </span>
             </label>
           </div>
