@@ -76,8 +76,8 @@ async def save_system(session: AsyncSession, settings: SystemSettings) -> System
 
 
 async def registration_open(session: AsyncSession) -> bool:
-    """Web sign-up needs both the env switch (ALLOW_REGISTRATION) and the admin switch."""
-    return get_settings().allow_registration and (await get_system(session)).registration_open
+    """Web sign-up is controlled by the admin switch (new accounts still wait for feature grants)."""
+    return (await get_system(session)).registration_open
 
 
 # ---------- permissions ----------

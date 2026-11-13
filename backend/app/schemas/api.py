@@ -71,10 +71,6 @@ class SystemSettingsIO(BaseModel):
     daily_limits: dict[str, int] = Field(description="Per user per day; 0 = unlimited")
 
 
-class SystemSettingsOut(SystemSettingsIO):
-    registration_allowed_by_server: bool = Field(description="ALLOW_REGISTRATION in .env (hard switch)")
-
-
 class AdminUserOut(BaseModel):
     id: int
     email: str

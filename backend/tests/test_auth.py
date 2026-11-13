@@ -73,12 +73,12 @@ def test_login_rate_limit() -> None:
     lim.check("5.6.7.8")  # other clients unaffected
 
 
-async def test_create_user_works_while_signup_is_closed(app_client, monkeypatch) -> None:  # noqa: ARG001
-    from app.core.config import get_settings
+async def test_create_user_works_while_signup_is_closed(app_client) -> None:  # noqa: ARG001
     from app.db.session import SessionLocal
     from app.services.auth import AuthError, create_user, register
+    from tests.conftest import set_system
 
-    monkeypatch.setattr(get_settings(), "allow_registration", False)
+    set_system(registration_open=False)
     async with SessionLocal() as session:
         try:
             await register(session, email="web@example.com", password="secret-pass-1", display_name="Web")
@@ -86,4 +86,5 @@ async def test_create_user_works_while_signup_is_closed(app_client, monkeypatch)
         except AuthError as e:
             assert e.status == 403
         user = await create_user(session, email="Admin@Example.com", password="secret-pass-1", display_name="Admin")
+    set_system(registration_open=True)
     assert user.email == "admin@example.com"

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Change one setting in the server's .env and restart the app.
-# Usage: deploy/set-env.sh ALLOW_REGISTRATION=false
+# Usage: deploy/set-env.sh COOKIE_SECURE=true
 set -euo pipefail
 PAIR=${1:?usage: deploy/set-env.sh KEY=VALUE}
 KEY=${PAIR%%=*}

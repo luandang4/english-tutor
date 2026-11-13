@@ -3,31 +3,29 @@
 from fastapi import APIRouter, HTTPException
 
 from app.api.deps import AdminUser, SessionDep, get_or_404
-from app.core.config import get_settings
 from app.models.user import User
-from app.schemas.api import AdminUserOut, AdminUserPatch, SystemSettingsIO, SystemSettingsOut
+from app.schemas.api import AdminUserOut, AdminUserPatch, SystemSettingsIO
 from app.services import access, admin
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
 
-def _system_out(s: access.SystemSettings) -> SystemSettingsOut:
-    return SystemSettingsOut(
+def _system_out(s: access.SystemSettings) -> SystemSettingsIO:
+    return SystemSettingsIO(
         features_enabled=s.features_enabled,
         registration_open=s.registration_open,
         default_features=s.default_features,
         daily_limits=s.daily_limits,
-        registration_allowed_by_server=get_settings().allow_registration,
     )
 
 
-@router.get("/system", response_model=SystemSettingsOut)
-async def get_system(_: AdminUser, session: SessionDep) -> SystemSettingsOut:
+@router.get("/system", response_model=SystemSettingsIO)
+async def get_system(_: AdminUser, session: SessionDep) -> SystemSettingsIO:
     return _system_out(await access.get_system(session))
 
 
-@router.put("/system", response_model=SystemSettingsOut)
-async def put_system(body: SystemSettingsIO, _: AdminUser, session: SessionDep) -> SystemSettingsOut:
+@router.put("/system", response_model=SystemSettingsIO)
+async def put_system(body: SystemSettingsIO, _: AdminUser, session: SessionDep) -> SystemSettingsIO:
     return _system_out(await admin.update_system(session, body))
 
 

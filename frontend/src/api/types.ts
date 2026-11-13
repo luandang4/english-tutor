@@ -38,7 +38,6 @@ export interface SystemSettings {
   registration_open: boolean
   default_features: Feature[]
   daily_limits: Record<Feature, number>
-  registration_allowed_by_server?: boolean
 }
 
 export interface AdminUser {

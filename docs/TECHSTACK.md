@@ -122,7 +122,7 @@ switched off) or `429` (daily limit). The frontend hides or locks what `me.featu
 
 - System settings live in `app_settings` (key `system`): `features_enabled`, `daily_limits`,
   `registration_open`, `default_features` (granted to new sign-ups; empty = **wait for admin approval**).
-- Web sign-up needs `ALLOW_REGISTRATION=true` in `.env` **and** the admin switch.
+- Web sign-up is controlled only by the admin switch (`registration_open`), no `.env` setting.
 - The first account ever created becomes admin; `deploy/create-user.sh EMAIL "Name" [--admin]` adds accounts
   from the command line. Admins cannot lock or demote themselves (there is always one admin).
 - Admin UI: `/admin` (system switches + limits, users with grants / lock / admin, today's usage).
@@ -149,7 +149,7 @@ switched off) or `429` (daily limit). The frontend hides or locks what `me.featu
   same time as wrong passwords.
 - **Migration of existing data**: rows created before accounts existed have `user_id = NULL`, and the
   first account to register claims them.
-- Settings: `ALLOW_REGISTRATION` (turn it off after creating your accounts), `COOKIE_SECURE` (set true
+- Settings: `COOKIE_SECURE` (set true
   behind HTTPS), `SESSION_DAYS`.
 
 ## Data model
@@ -213,7 +213,7 @@ overrides.
 make provision                    # once: AWS resources (re-run to allow SSH from a new IP)
 make bootstrap                    # once: packages, .env, first release
 git push origin main && make deploy   # every release: git reset to origin/main, uv sync, npm build, restart
-deploy/set-env.sh ALLOW_REGISTRATION=false   # change one server setting + restart
+deploy/set-env.sh COOKIE_SECURE=true          # change one server setting + restart
 deploy/create-user.sh you@example.com "Name"  # add an account while web sign-up is closed
 deploy/enable-https.sh tutor.example.com     # after DNS points at the Elastic IP
 ```
@@ -231,5 +231,5 @@ session cookie, and SSH only accepts the deploy key from one IP.
 - [x] systemd + Caddy, S3 audio cache, SSH restricted
 - [x] HTTPS (`deploy/enable-https.sh english-tutor.us.ci`): `COOKIE_SECURE=true`, `ALLOWED_ORIGINS` = the domain
 - [x] `API_DOCS=false` (no `/docs`, `/openapi.json`)
-- [x] web sign-up closed (`ALLOW_REGISTRATION=false`); accounts are added with `deploy/create-user.sh`
+- [x] sign-up controlled in `/admin`; new accounts wait for approval; `deploy/create-user.sh` also adds accounts
 - [ ] backups of `/opt/english-tutor/data/app.db` (SQLite on the instance disk; none yet)

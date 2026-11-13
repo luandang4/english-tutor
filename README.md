@@ -42,8 +42,8 @@ make dev       # backend :8000 + Vite :5173 → open http://localhost:5173
 
 On startup the database (`data/app.db`, SQLite) is created and migrated automatically, and the preset
 topics are seeded. Open the app, choose **Đăng ký** and create an account. The **first** account
-automatically receives any data created before accounts existed. To stop anyone else signing up, set
-`ALLOW_REGISTRATION=false` in `.env`.
+automatically receives any data created before accounts existed and becomes **admin**. Sign-up is switched
+on / off in the admin panel (`/admin`); new accounts wait until an admin grants them features.
 
 **Production:** https://english-tutor.us.ci on AWS EC2, released with `make deploy` after pushing `main`.
 Infrastructure, scripts and the HTTPS step are in `docs/TECHSTACK.md` → *Deployment*.

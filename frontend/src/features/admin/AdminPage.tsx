@@ -38,7 +38,6 @@ function SystemPanel({ features }: { features: FeatureInfo[] }) {
         ? current.default_features.filter((x) => x !== f)
         : [...current.default_features, f],
     })
-  const serverBlocksSignup = current.registration_allowed_by_server === false
 
   return (
     <section className="card stack admin-section">
@@ -89,16 +88,13 @@ function SystemPanel({ features }: { features: FeatureInfo[] }) {
           <input
             type="checkbox"
             checked={current.registration_open}
-            disabled={serverBlocksSignup}
             onChange={(e) => update({ registration_open: e.target.checked })}
           />
           <span className="switch" aria-hidden="true" />
           <span>
             Cho phép đăng ký tài khoản mới
             <small>
-              {serverBlocksSignup
-                ? 'Đang bị khoá bởi ALLOW_REGISTRATION=false trong .env của máy chủ.'
-                : 'Người mới chỉ dùng được các tính năng mặc định bên dưới.'}
+              Người mới chỉ dùng được các tính năng mặc định bên dưới.
             </small>
           </span>
         </label>
