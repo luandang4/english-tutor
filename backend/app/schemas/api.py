@@ -301,9 +301,10 @@ class PronunciationOut(BaseModel):
     recognized_text: str
     pron_score: float
     accuracy: float
-    fluency: float
+    fluency: float | None
     completeness: float
     prosody: float | None
+    engine: str = Field("azure", description="azure | local (estimate)")
     words: list[WordScoreOut]
 
 

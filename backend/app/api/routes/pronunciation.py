@@ -8,7 +8,7 @@ from app.models.pronunciation import PronunciationAttempt
 from app.models.vocab import VocabCard
 from app.schemas.api import PhonemeOut, PronunciationOut, WordScoreOut
 from app.services import access
-from app.services.speech import azure
+from app.services.speech import assessment, azure
 
 router = APIRouter(
     prefix="/pronunciation", tags=["pronunciation"], dependencies=[require_feature(Feature.PRONUNCIATION)]
@@ -32,7 +32,7 @@ async def assess(
         raise HTTPException(413, f"Ghi âm tối đa {azure.MAX_SECONDS} giây.")
     await access.ensure_quota(session, user, Feature.PRONUNCIATION)
     try:
-        result = await azure.assess(pcm, reference_text)
+        result = await assessment.assess(pcm, reference_text)
     except azure.PronunciationError as e:
         raise HTTPException(422, str(e)) from e
     await access.record_usage(session, user.id, Feature.PRONUNCIATION)
@@ -53,6 +53,7 @@ async def assess(
         fluency=result.fluency,
         completeness=result.completeness,
         prosody=result.prosody,
+        engine=result.engine,
         words=[w.model_dump() for w in words],
     )
     session.add(row)
@@ -66,5 +67,6 @@ async def assess(
         fluency=result.fluency,
         completeness=result.completeness,
         prosody=result.prosody,
+        engine=result.engine,
         words=words,
     )

@@ -2,12 +2,16 @@ import type { TurnPronunciation } from '../../api/types'
 import { SpeakButton } from '../../components/ui'
 import { scoreTone } from '../../lib/format'
 
-/** Pronunciation of one spoken turn, measured by Azure on the real audio (never guessed from text). */
+/** Pronunciation of one spoken turn, measured on the real audio (Azure, or the local model as an estimate). */
 export function TurnPronunciationView({ result }: { result: TurnPronunciation }) {
   return (
     <div className="turn-pron">
-      <span className={`turn-pron-score tone-${scoreTone(result.score)}`} title="Điểm phát âm (Azure)">
+      <span
+        className={`turn-pron-score tone-${scoreTone(result.score)}`}
+        title={result.engine === 'local' ? 'Ước lượng bằng model âm vị chạy trên máy chủ' : 'Điểm phát âm (Azure)'}
+      >
         Phát âm {result.score}
+        {result.engine === 'local' && ' · ước lượng'}
       </span>
       {result.weak_words.length === 0 ? (
         <span className="small muted">Các từ đều rõ</span>

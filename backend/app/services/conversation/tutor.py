@@ -82,7 +82,7 @@ LEVEL_POLICY: dict[str, LevelPolicy] = {
 
 PRONUNCIATION_WITH_DATA = """\
 - You cannot hear pronunciation reliably yourself. Messages starting with "[Pronunciation data]" are real
-  measurements of the learner's previous spoken turn (Azure Pronunciation Assessment). Only those may be used
+  measurements of the learner's previous spoken turn (pronunciation assessment on the audio). Only those may be used
   to comment on pronunciation.
 - When the data shows a weak word (low score or mispronounced), at a natural moment in your next reply: name
   the word, say it clearly and slowly as a model, explain the sound at the learner's level, and ask them to

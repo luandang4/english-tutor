@@ -4,12 +4,12 @@ from fastapi import APIRouter
 from sqlalchemy import select
 
 from app.api.deps import SessionDep
-from app.core.config import get_settings
 from app.core.constants import FEATURE_INFO, Skill
 from app.models.topic import Topic
 from app.schemas.api import FeatureInfo, MetaOut, Option, TopicOut, level_options
 from app.services import access
 from app.services.conversation.live import SCENARIOS
+from app.services.speech import assessment
 
 router = APIRouter(tags=["catalog"])
 
@@ -25,7 +25,7 @@ async def meta(session: SessionDep) -> MetaOut:
         levels=level_options(),
         scenarios=[Option(value=k, label=v["label"]) for k, v in SCENARIOS.items()],
         features=[FeatureInfo(value=k, **v) for k, v in FEATURE_INFO.items()],
-        pronunciation_enabled=get_settings().azure_enabled,
+        pronunciation_enabled=assessment.available(),
         registration_open=await access.registration_open(session),
     )
 
