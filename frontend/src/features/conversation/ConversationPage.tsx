@@ -3,10 +3,12 @@ import { Link } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 
 import { keys, useMeta } from '../../api/hooks'
+import type { TurnPronunciation } from '../../api/types'
 import { Icon } from '../../components/ui'
 import { LiveSession } from '../../lib/audio/live-session'
 import { useLevel, usePreference } from '../../lib/preferences'
 import { Orb, type OrbMode } from '../../orb/orb'
+import { TurnPronunciationView } from './TurnPronunciationView'
 import './conversation.css'
 
 const USER_TALK_RMS = 0.025 // mic level that counts as "the learner is speaking"
@@ -30,6 +32,7 @@ interface Message {
   id: number
   role: 'user' | 'tutor' | 'error'
   text: string
+  pronunciation?: TurnPronunciation
 }
 
 export function ConversationPage() {
@@ -56,6 +59,7 @@ export function ConversationPage() {
   const sessionRef = useRef<LiveSession | null>(null)
   const bubbleOpen = useRef(false) // is the last message still receiving fragments?
   const nextId = useRef(1)
+  const typed = useRef(new Set<number>()) // typed messages have no audio to score
 
   useEffect(() => {
     orbRef.current = new Orb(canvasRef.current!)
@@ -121,6 +125,15 @@ export function ConversationPage() {
     })
   }
 
+  // Azure scores a spoken turn shortly after Emma answered it: attach to the latest spoken turn without a score.
+  const attachPronunciation = (result: TurnPronunciation) => {
+    setMessages((ms) => {
+      const i = ms.findLastIndex((m) => m.role === 'user' && !m.pronunciation && !typed.current.has(m.id))
+      if (i < 0) return ms
+      return ms.map((m, j) => (j === i ? { ...m, pronunciation: result } : m))
+    })
+  }
+
   const start = async () => {
     setMode('connecting')
     setCaption(null)
@@ -131,6 +144,7 @@ export function ConversationPage() {
       },
       onTranscript: appendTranscript,
       onTurnEnd: () => (bubbleOpen.current = false),
+      onPronunciation: attachPronunciation,
       onInterrupted: () => (bubbleOpen.current = false),
       onError: (m) => push('error', m),
       onClosed: () => {
@@ -160,6 +174,7 @@ export function ConversationPage() {
     e.preventDefault()
     const t = text.trim()
     if (!t || !sessionRef.current) return
+    typed.current.add(nextId.current)
     push('user', t)
     setCaption({ role: 'user', text: t })
     sessionRef.current.sendText(t)
@@ -247,6 +262,7 @@ export function ConversationPage() {
               <div key={m.id} className={`msg ${m.role}`}>
                 {m.role !== 'error' && <span className="who">{m.role === 'tutor' ? 'Emma' : 'Bạn'}</span>}
                 {m.text}
+                {m.pronunciation && <TurnPronunciationView result={m.pronunciation} />}
               </div>
             ))}
           </div>

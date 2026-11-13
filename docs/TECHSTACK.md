@@ -62,6 +62,23 @@ Browser (React SPA)
 - **Writing scores** are recomputed server-side as the mean of the four criteria. Corrections that
   can't be located in the learner's text are dropped, so highlighting always works.
 
+## Conversation tutor
+
+- **Level-locked behaviour** (`services/conversation/tutor.py`): one shared rule set plus a small `LEVEL_POLICY`
+  per CEFR level (English style, how much Vietnamese is allowed, correction style, enhancement on/off, reply
+  length). The level chosen at the start is fixed for the session: the learner speaking Vietnamese never
+  raises the amount of Vietnamese Emma uses.
+- **Strict correction** on every level; **enhancement** (upgrading correct but plain sentences) only at B2/C1.
+- **No cutting in**: Gemini Live VAD uses low end-of-speech sensitivity and `LIVE_END_OF_SPEECH_MS` (1200 ms)
+  of silence before a learner turn ends.
+- **Pronunciation from real audio only** (`services/conversation/pronunciation.py`): the server keeps each
+  spoken learner turn's mic audio + transcript. After Emma has answered it, the turn is trimmed and scored by
+  Azure (reference text = the transcript; mixed Vietnamese, typed, too short or >30 s turns are skipped). The
+  result goes to the UI (score + weak words with a listen button, also saved in the transcript) and to the
+  model as a `[Pronunciation data]` context message (`turn_complete=False`, held back while Emma is speaking
+  because client content interrupts a Live answer). Without Azure the prompt forbids pronunciation claims.
+  Disable with `LIVE_PRONUNCIATION=false`.
+
 ## Audio cache and options
 
 - `data/tts/` caches every generated word / sentence audio (name = hash + source + extension). A background loop
@@ -116,7 +133,8 @@ backend/
     services/            business logic (lessons, grading, srs, writing, progress, tasks)
       ai/                Gemini client + prompts
       speech/            Azure pronunciation + word/sentence audio chain
-      conversation/      Gemini Live persona/config
+      conversation/      Gemini Live config (live.py), tutor rules per CEFR level (tutor.py),
+                   per-turn pronunciation evidence (pronunciation.py)
     api/routes/          thin HTTP/WebSocket layer
     seed/topics.py       preset topics (edit to add more)
   alembic/               migrations

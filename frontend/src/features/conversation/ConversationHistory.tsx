@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useConversation, useConversations, useDeleteConversation, useMeta } from '../../api/hooks'
 import { EmptyState, ErrorBox, Icon, Loading, PageHeader } from '../../components/ui'
 import { formatDuration, timeAgo } from '../../lib/format'
+import { TurnPronunciationView } from './TurnPronunciationView'
 import './conversation.css'
 
 function useScenarioLabel() {
@@ -78,7 +79,7 @@ export function ConversationDetailPage() {
       <PageHeader
         back={back}
         title={label(data.scenario)}
-        subtitle={`${data.level} · giọng ${data.voice} · ${formatDuration(data.duration_seconds)} · ${new Date(data.created_at).toLocaleString('vi-VN')}`}
+        subtitle={`${data.level} · ${formatDuration(data.duration_seconds)} · ${new Date(data.created_at).toLocaleString('vi-VN')}`}
         actions={
           <button
             className="btn sm danger"
@@ -93,6 +94,7 @@ export function ConversationDetailPage() {
           <div key={i} className={`msg ${t.role}`}>
             <span className="who">{t.role === 'tutor' ? 'Emma' : 'Bạn'}</span>
             {t.text}
+            {t.pronunciation && <TurnPronunciationView result={t.pronunciation} />}
           </div>
         ))}
       </div>

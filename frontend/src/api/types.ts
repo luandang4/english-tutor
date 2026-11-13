@@ -232,8 +232,24 @@ export interface ConversationSummary {
   turns: number
 }
 
+/** Azure pronunciation result for one spoken learner turn in a conversation. */
+export interface TurnPronunciation {
+  text: string
+  score: number
+  accuracy: number
+  fluency: number
+  prosody: number | null
+  weak_words: { word: string; score: number; error_type: string }[]
+}
+
+export interface ConversationTurn {
+  role: 'user' | 'tutor'
+  text: string
+  pronunciation?: TurnPronunciation
+}
+
 export interface ConversationDetail extends ConversationSummary {
-  transcript: { role: 'user' | 'tutor'; text: string }[]
+  transcript: ConversationTurn[]
 }
 
 // ---------- progress ----------

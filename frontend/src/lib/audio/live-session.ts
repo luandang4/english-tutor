@@ -1,6 +1,8 @@
 // Voice conversation client: mic (AudioWorklet, PCM16 16 kHz) -> /ws/conversation -> Gemini Live
 // -> PCM16 24 kHz -> speakers. Both directions also feed AnalyserNodes for the orb visualizer.
 
+import type { TurnPronunciation } from '../../api/types'
+
 const OUT_RATE = 24_000
 
 export interface LiveSettings {
@@ -12,6 +14,7 @@ export interface LiveCallbacks {
   onReady?: (sessionId: number) => void
   onTranscript?: (role: 'user' | 'tutor', text: string) => void
   onTurnEnd?: () => void
+  onPronunciation?: (result: TurnPronunciation) => void
   onInterrupted?: () => void
   onError?: (message: string) => void
   onClosed?: () => void
@@ -121,6 +124,9 @@ export class LiveSession {
       case 'interrupted':
         this.stopPlayback()
         this.cb.onInterrupted?.()
+        break
+      case 'pronunciation':
+        this.cb.onPronunciation?.(msg as TurnPronunciation)
         break
       case 'turn_complete':
         this.cb.onTurnEnd?.()

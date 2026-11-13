@@ -7,6 +7,8 @@ Browser <-> /ws/conversation protocol
     text   {"type": "text", "text": "..."}   typed message
     text   {"type": "stop"}
   server -> client
+    text   {"type": "pronunciation", "text", "score", "accuracy", "fluency", "prosody", "weak_words": [...]}
+           (Azure result for the learner's previous spoken turn; arrives shortly after the turn)
     text   {"type": "ready", "session_id": int} | {"type": "transcript", "role": "user"|"tutor", "text": "..."}
            {"type": "interrupted"} | {"type": "turn_complete"} | {"type": "error", "message": "..."}
     binary PCM16 mono 24 kHz tutor audio
@@ -29,6 +31,7 @@ from app.models.conversation import ConversationSession
 from app.services import auth
 from app.services.ai.client import get_genai_client
 from app.services.conversation.live import INPUT_RATE, OPENING_PROMPT, VOICE, LiveSettings, live_config
+from app.services.conversation.pronunciation import PronunciationCoach, TurnPronunciation
 
 log = logging.getLogger(__name__)
 router = APIRouter()
@@ -51,8 +54,22 @@ class Transcript:
         if self.turns:
             self.turns[-1]["closed"] = True
 
-    def export(self) -> list[dict[str, str]]:
-        return [{"role": t["role"], "text": t["text"].strip()} for t in self.turns if t["text"].strip()]
+    def last_user_index(self) -> int:
+        return next((i for i in range(len(self.turns) - 1, -1, -1) if self.turns[i]["role"] == "user"), -1)
+
+    def attach_pronunciation(self, index: int, data: dict[str, Any]) -> None:
+        if 0 <= index < len(self.turns):
+            self.turns[index]["pronunciation"] = data
+
+    def export(self) -> list[dict[str, Any]]:
+        out = []
+        for t in self.turns:
+            if text := t["text"].strip():
+                turn = {"role": t["role"], "text": text}
+                if "pronunciation" in t:
+                    turn["pronunciation"] = t["pronunciation"]
+                out.append(turn)
+        return out
 
 
 def _origin_allowed(ws: WebSocket) -> bool:
@@ -106,13 +123,14 @@ async def _run_session(ws: WebSocket, settings: LiveSettings, user_id: int) -> N
     # Browser input is buffered so it survives Gemini reconnects (Live connections get GoAway after ~10 min).
     inbox: asyncio.Queue[tuple[str, Any]] = asyncio.Queue()
     reader = asyncio.create_task(_read_browser(ws, inbox, transcript))
+    coach = _pronunciation_coach(ws, inbox, transcript)
     resume: dict[str, str | None] = {"handle": None}
     first = True
     try:
         async with asyncio.timeout(s.max_live_session_minutes * 60):
             while True:
                 async with client.aio.live.connect(
-                    model=s.live_model, config=live_config(settings, resume["handle"])
+                    model=s.live_model, config=live_config(settings, resume["handle"], coach.enabled)
                 ) as session:
                     if first:
                         first = False
@@ -123,8 +141,8 @@ async def _run_session(ws: WebSocket, settings: LiveSettings, user_id: int) -> N
                         )
                     else:
                         log.info("conversation %s resumed Live session", record_id)
-                    forward = asyncio.create_task(_forward(inbox, session))
-                    relay = asyncio.create_task(_relay(ws, session, resume, transcript))
+                    forward = asyncio.create_task(_forward(inbox, session, coach))
+                    relay = asyncio.create_task(_relay(ws, session, resume, transcript, coach))
                     done, pending = await asyncio.wait({forward, relay}, return_when=asyncio.FIRST_COMPLETED)
                     for t in pending:
                         t.cancel()
@@ -145,10 +163,11 @@ async def _run_session(ws: WebSocket, settings: LiveSettings, user_id: int) -> N
         await _safe_send(ws, {"type": "error", "message": f"{type(e).__name__}: {e}"[:500]})
     finally:
         reader.cancel()
+        coach.close()
         await _save(record_id, transcript, int(time.monotonic() - started))
         try:
             await ws.close()
-        except RuntimeError:
+        except Exception:  # noqa: BLE001 — the browser already disconnected
             pass
 
 
@@ -193,28 +212,51 @@ async def _read_browser(ws: WebSocket, inbox: asyncio.Queue, transcript: Transcr
         await inbox.put(("stop", None))
 
 
-async def _forward(inbox: asyncio.Queue, session: Any) -> None:
+def _pronunciation_coach(ws: WebSocket, inbox: asyncio.Queue, transcript: Transcript) -> PronunciationCoach:
+    """Scores each spoken learner turn (Azure); shows it in the UI, saves it, and tells the tutor model."""
+    s = get_settings()
+
+    async def on_result(turn_index: int, result: TurnPronunciation) -> None:
+        data = result.to_dict()
+        transcript.attach_pronunciation(turn_index, data)
+        await _safe_send(ws, {"type": "pronunciation", **data})
+
+    async def send_note(note: str) -> None:
+        await inbox.put(("note", note))
+
+    return PronunciationCoach(s.live_pronunciation and s.azure_enabled, on_result, send_note)
+
+
+async def _forward(inbox: asyncio.Queue, session: Any, coach: PronunciationCoach) -> None:
     mime = f"audio/pcm;rate={INPUT_RATE}"
     while True:
         kind, payload = await inbox.get()
         if kind == "stop":
             return
         if kind == "audio":
+            coach.learner_audio(payload)
             await session.send_realtime_input(audio=types.Blob(data=payload, mime_type=mime))
+        elif kind == "note":  # context only: must not trigger an answer
+            await session.send_client_content(
+                turns=types.Content(role="user", parts=[types.Part(text=payload)]), turn_complete=False
+            )
         else:
             await session.send_client_content(
                 turns=types.Content(role="user", parts=[types.Part(text=payload)]), turn_complete=True
             )
 
 
-async def _relay(ws: WebSocket, session: Any, resume: dict, transcript: Transcript) -> str:
+async def _relay(ws: WebSocket, session: Any, resume: dict, transcript: Transcript, coach: PronunciationCoach) -> str:
     while True:  # session.receive() ends after each turn_complete
         async for m in session.receive():
+            sc = m.server_content
+            if m.data or (sc and sc.output_transcription and sc.output_transcription.text):
+                coach.tutor_output()
             if m.data:
                 await ws.send_bytes(m.data)
-            sc = m.server_content
             if sc:
                 if sc.input_transcription and sc.input_transcription.text:
+                    coach.learner_text(sc.input_transcription.text)
                     transcript.add("user", sc.input_transcription.text)
                     await ws.send_json({"type": "transcript", "role": "user", "text": sc.input_transcription.text})
                 if sc.output_transcription and sc.output_transcription.text:
@@ -223,9 +265,11 @@ async def _relay(ws: WebSocket, session: Any, resume: dict, transcript: Transcri
                 if sc.interrupted:
                     transcript.close_turn()
                     await ws.send_json({"type": "interrupted"})
+                    await coach.tutor_done(transcript.last_user_index())
                 if sc.turn_complete:
                     transcript.close_turn()
                     await ws.send_json({"type": "turn_complete"})
+                    await coach.tutor_done(transcript.last_user_index())
             upd = m.session_resumption_update
             if upd and upd.resumable and upd.new_handle:
                 resume["handle"] = upd.new_handle

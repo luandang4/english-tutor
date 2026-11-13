@@ -40,6 +40,9 @@ async def read_turn(ws, label, t0):
         m = json.loads(msg)
         if m["type"] == "transcript":
             text[m["role"]] += m["text"]
+        elif m["type"] == "pronunciation":
+            weak = ", ".join(f"{w['word']} {w['score']}" for w in m["weak_words"]) or "none"
+            print(f"   [pronunciation] {m['score']}/100 for {m['text']!r}; weak: {weak}")
         elif m["type"] == "error":
             raise RuntimeError(m["message"])
         elif m["type"] == "turn_complete":
