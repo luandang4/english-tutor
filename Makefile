@@ -1,5 +1,5 @@
 # English Tutor — common tasks. Run `make help`.
-.PHONY: help setup tts-model dev dev-backend dev-frontend build start test lint format migration smoke
+.PHONY: help setup tts-model dev dev-backend dev-frontend build start test lint format migration smoke provision bootstrap deploy
 
 help:
 	@echo "setup         install backend (uv) + frontend (npm) dependencies + TTS model"
@@ -11,6 +11,9 @@ help:
 	@echo "lint/format   ruff + oxlint"
 	@echo "migration     new Alembic migration after changing models: make migration m='message'"
 	@echo "smoke         live Gemini conversation smoke test: SMOKE_EMAIL=.. SMOKE_PASSWORD=.. make smoke"
+	@echo "provision     AWS: S3 bucket, IAM role, security group, EC2, Elastic IP (once)"
+	@echo "bootstrap     first-time server setup + .env + first deploy (once, after provision)"
+	@echo "deploy        deploy pushed origin/main to EC2"
 
 setup:
 	cd backend && uv sync
@@ -51,3 +54,12 @@ migration:
 
 smoke:
 	cd backend && uv run python scripts/smoke_live.py
+
+provision:
+	deploy/provision.sh
+
+bootstrap:
+	deploy/bootstrap.sh
+
+deploy:
+	deploy/deploy.sh

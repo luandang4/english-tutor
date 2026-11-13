@@ -21,10 +21,10 @@ from collections.abc import Awaitable, Callable
 import httpx
 import numpy as np
 
-from app.core.config import DATA_DIR, get_settings
+from app.core.config import get_settings
+from app.services.speech.audio_store import cleanup, get_store
 
 log = logging.getLogger(__name__)
-CACHE_DIR = DATA_DIR / "tts"
 CACHE_VERSION = "v2"
 FADE_SECONDS = 0.01
 PAD_SECONDS = 0.08
@@ -163,20 +163,30 @@ def _chain(text: str, preferred: str | None = None) -> list[str]:
     return default
 
 
+def _parse_name(name: str) -> tuple[str, str] | None:
+    """'{key}.{source}{ext}' -> (source, media type)."""
+    parts = name.split(".")
+    if len(parts) != 3:
+        return None
+    media = MEDIA.get(f".{parts[2]}")
+    return (parts[1], media) if media else None
+
+
 async def synthesize(text: str, preferred: str | None = None) -> tuple[bytes, str, str]:
     """Return (audio bytes, media type, source name). `preferred` = learner-chosen source (falls back on failure)."""
+    store = get_store()
     chain = _chain(text, preferred)
     key = hashlib.sha256(f"{CACHE_VERSION}|{','.join(chain)}|{text}".encode()).hexdigest()[:32]
     stale = None
-    for cached in CACHE_DIR.glob(f"{key}.*"):
-        source = cached.suffixes[0].lstrip(".")
-        media = MEDIA.get(cached.suffix)
-        if media is None or source not in chain:
+    for cached in await store.find(key):
+        parsed = _parse_name(cached.name)
+        if parsed is None or parsed[0] not in chain:
             continue
+        source, media = parsed
         # A fallback result (preferred source was down) is retried later instead of being kept forever.
-        if source == chain[0] or time.time() - cached.stat().st_mtime < FALLBACK_RETRY_SECONDS:
-            return await asyncio.to_thread(cached.read_bytes), media, source
-        stale = (cached, media, source)
+        if source == chain[0] or time.time() - cached.mtime < FALLBACK_RETRY_SECONDS:
+            return await store.read(cached.name), media, source
+        stale = (cached.name, media, source)
         chain = chain[: chain.index(source)]  # only sources better than the cached one
         break
 
@@ -186,55 +196,22 @@ async def synthesize(text: str, preferred: str | None = None) -> tuple[bytes, st
         except Exception as e:  # noqa: BLE001 — try the next source
             log.warning("TTS source %s failed for %r: %s", name, text[:40], e)
             continue
-        CACHE_DIR.mkdir(parents=True, exist_ok=True)
-        await asyncio.to_thread((CACHE_DIR / f"{key}.{name}{ext}").write_bytes, audio)
+        await store.write(f"{key}.{name}{ext}", audio)
         if stale:
-            stale[0].unlink(missing_ok=True)
+            await store.delete(stale[0])
         return audio, MEDIA[ext], name
     if stale:  # preferred source still down: keep serving the fallback, retry again later
-        stale[0].touch()
-        return await asyncio.to_thread(stale[0].read_bytes), stale[1], stale[2]
+        await store.touch(stale[0])
+        return await store.read(stale[0]), stale[1], stale[2]
     raise TTSError("Không tạo được âm thanh.")
 
 
-def cleanup_cache(max_age_days: int, max_bytes: int, now: float | None = None) -> int:
-    """Delete cached audio older than `max_age_days`, then oldest files until the folder fits `max_bytes`.
-    Returns the number of files removed."""
-    if not CACHE_DIR.exists():
-        return 0
-    now = time.time() if now is None else now
-    files = []
-    for f in CACHE_DIR.iterdir():
-        try:
-            st = f.stat()
-        except OSError:
-            continue
-        if f.is_file():
-            files.append((st.st_mtime, st.st_size, f))
-    removed = 0
-    keep = []
-    for mtime, size, f in files:
-        if now - mtime > max_age_days * 86400:
-            f.unlink(missing_ok=True)
-            removed += 1
-        else:
-            keep.append((mtime, size, f))
-    total = sum(size for _, size, _ in keep)
-    for _, size, f in sorted(keep, key=lambda x: x[0]):  # oldest first
-        if total <= max_bytes:
-            break
-        f.unlink(missing_ok=True)
-        total -= size
-        removed += 1
-    return removed
-
-
 async def cache_maintenance(interval_seconds: int = 3600) -> None:
-    """Background loop: keep the audio cache within the age / size limits."""
+    """Background loop: keep the audio cache (local folder or S3) within the age / size limits."""
     while True:
         s = get_settings()
         try:
-            n = await asyncio.to_thread(cleanup_cache, s.tts_cache_max_days, s.tts_cache_max_mb * 1024 * 1024)
+            n = await cleanup(get_store(), s.tts_cache_max_days, s.tts_cache_max_mb * 1024 * 1024)
             if n:
                 log.info("TTS cache cleanup removed %d file(s)", n)
         except Exception:

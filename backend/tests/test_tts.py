@@ -12,8 +12,9 @@ async def test_fallback_audio_is_upgraded_when_preferred_source_recovers(tmp_pat
     import time
 
     from app.services.speech import tts
+    from app.services.speech.audio_store import LocalAudioStore
 
-    monkeypatch.setattr(tts, "CACHE_DIR", tmp_path)
+    monkeypatch.setattr(tts, "get_store", lambda: LocalAudioStore(tmp_path))
     calls = {"google": 0}
 
     async def google(text):  # noqa: ANN001, ANN202
@@ -44,12 +45,12 @@ def test_chosen_source_goes_first_with_default_chain_as_fallback() -> None:
     assert _chain("season", None) == ["google", "dictionary", "kokoro"]
 
 
-def test_cache_cleanup_removes_old_files_then_oldest_over_size(tmp_path, monkeypatch) -> None:
+async def test_cache_cleanup_removes_old_files_then_oldest_over_size(tmp_path) -> None:
     import os
 
-    from app.services.speech import tts
+    from app.services.speech.audio_store import LocalAudioStore, cleanup
 
-    monkeypatch.setattr(tts, "CACHE_DIR", tmp_path)
+    store = LocalAudioStore(tmp_path)
     now = 1_000_000_000.0
     day = 86400
 
@@ -63,7 +64,57 @@ def test_cache_cleanup_removes_old_files_then_oldest_over_size(tmp_path, monkeyp
     make("middle.mp3", 10, 100)
     make("newest.mp3", 1, 100)
 
-    removed = tts.cleanup_cache(max_age_days=30, max_bytes=250, now=now)
+    removed = await cleanup(store, max_age_days=30, max_bytes=250, now=now)
     assert removed == 2  # expired by age, then oldest dropped to fit 250 bytes
     assert sorted(f.name for f in tmp_path.iterdir()) == ["middle.mp3", "newest.mp3"]
-    assert tts.cleanup_cache(30, 250, now=now) == 0
+    assert await cleanup(store, 30, 250, now=now) == 0
+
+
+class FakeS3:
+    """Just enough of the boto3 S3 client for S3AudioStore."""
+
+    def __init__(self) -> None:
+        from datetime import UTC, datetime
+
+        self.now = lambda: datetime.now(UTC)
+        self.objects: dict[str, tuple[bytes, object]] = {}
+
+    def list_objects_v2(self, Bucket, Prefix, ContinuationToken=None):  # noqa: ANN001, ANN201, N803
+        items = [
+            {"Key": k, "Size": len(v[0]), "LastModified": v[1]} for k, v in self.objects.items() if k.startswith(Prefix)
+        ]
+        return {"Contents": items, "IsTruncated": False}
+
+    def get_object(self, Bucket, Key):  # noqa: ANN001, ANN201, N803
+        import io
+
+        return {"Body": io.BytesIO(self.objects[Key][0])}
+
+    def put_object(self, Bucket, Key, Body):  # noqa: ANN001, ANN201, N803
+        self.objects[Key] = (Body, self.now())
+
+    def delete_object(self, Bucket, Key):  # noqa: ANN001, ANN201, N803
+        self.objects.pop(Key, None)
+
+    def copy_object(self, Bucket, Key, CopySource, MetadataDirective):  # noqa: ANN001, ANN201, N803
+        self.objects[Key] = (self.objects[CopySource["Key"]][0], self.now())
+
+
+async def test_s3_store_caches_audio(monkeypatch) -> None:
+    from app.services.speech import tts
+    from app.services.speech.audio_store import S3AudioStore
+
+    s3 = FakeS3()
+    monkeypatch.setattr(tts, "get_store", lambda: S3AudioStore("bucket", "tts/", client=s3))
+    calls = []
+
+    async def google(text):  # noqa: ANN001, ANN202
+        calls.append(text)
+        return b"G", ".mp3"
+
+    monkeypatch.setitem(tts.SOURCES, "google", google)
+    assert await tts.synthesize("harbour") == (b"G", "audio/mpeg", "google")
+    assert await tts.synthesize("harbour") == (b"G", "audio/mpeg", "google")
+    assert calls == ["harbour"]  # second call served from S3
+    [key] = s3.objects
+    assert key.startswith("tts/") and key.endswith(".google.mp3")

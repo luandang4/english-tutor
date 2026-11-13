@@ -1,0 +1,6 @@
+# Reverse proxy in front of uvicorn. SITE_ADDRESS is ":80" until a domain is set (deploy/enable-https.sh),
+# then Caddy fetches and renews a Let's Encrypt certificate automatically.
+{$SITE_ADDRESS} {
+	encode zstd gzip
+	reverse_proxy 127.0.0.1:8000
+}

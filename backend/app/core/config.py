@@ -2,6 +2,7 @@
 
 from functools import lru_cache
 from pathlib import Path
+from typing import Literal
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -34,6 +35,9 @@ class Settings(BaseSettings):
     # Kokoro-82M (local, offline)
     tts_model_path: Path = DATA_DIR / "models" / "kokoro-v1.0.onnx"
     tts_voices_path: Path = DATA_DIR / "models" / "voices-v1.0.bin"
+    tts_storage: Literal["local", "s3"] = "local"  # where generated audio is cached
+    tts_s3_bucket: str = ""
+    tts_s3_prefix: str = "tts/"
     tts_cache_max_mb: int = 1024  # audio cache size cap; oldest files are deleted first
     tts_cache_max_days: int = 30  # audio files older than this are deleted
     tts_voice: str = "af_heart"
