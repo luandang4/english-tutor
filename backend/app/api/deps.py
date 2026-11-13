@@ -7,7 +7,7 @@ from app.core.config import get_settings
 from app.db.base import Base
 from app.db.session import get_session
 from app.models.user import User
-from app.services import auth
+from app.services import access, auth
 
 SessionDep = Annotated[AsyncSession, Depends(get_session)]
 M = TypeVar("M", bound=Base)
@@ -21,6 +21,30 @@ async def get_current_user(request: Request, session: SessionDep) -> User:
 
 
 CurrentUser = Annotated[User, Depends(get_current_user)]
+
+
+async def get_admin_user(user: CurrentUser) -> User:
+    if not user.is_admin:
+        raise HTTPException(status_code=403, detail="Chỉ admin mới truy cập được.")
+    return user
+
+
+AdminUser = Annotated[User, Depends(get_admin_user)]
+
+
+def require_feature(feature: str):  # noqa: ANN201
+    """Router / route dependency: the whole endpoint belongs to a feature the user must be allowed to use."""
+
+    async def check(user: CurrentUser, session: SessionDep) -> None:
+        await access.ensure_feature(session, user, feature)
+
+    return Depends(check)
+
+
+async def require_any_feature(user: CurrentUser, session: SessionDep) -> None:
+    """For shared helpers (e.g. pronunciation audio): any approved account, not one waiting for approval."""
+    if not await access.has_any_feature(session, user):
+        raise HTTPException(status_code=403, detail="Tài khoản của bạn đang chờ admin cấp quyền.")
 
 
 async def get_or_404(session: AsyncSession, model: type[M], id_: int, what: str = "Bản ghi") -> M:

@@ -17,7 +17,9 @@ Browser <-> /ws/conversation protocol
 import asyncio
 import json
 import logging
+import math
 import time
+from dataclasses import dataclass
 from typing import Any
 from urllib.parse import urlparse
 
@@ -25,10 +27,12 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from google.genai import types
 
 from app.core.config import get_settings
+from app.core.constants import Feature
 from app.db.base import utcnow
 from app.db.session import SessionLocal
 from app.models.conversation import ConversationSession
-from app.services import auth
+from app.models.user import User
+from app.services import access, auth
 from app.services.ai.client import get_genai_client
 from app.services.conversation.live import INPUT_RATE, OPENING_PROMPT, VOICE, LiveSettings, live_config
 from app.services.conversation.pronunciation import PronunciationCoach, TurnPronunciation
@@ -95,6 +99,12 @@ async def conversation_ws(ws: WebSocket) -> None:
         await ws.close(code=1008)
         return
     try:
+        limits = await _session_limits(user)
+    except access.AccessError as e:
+        await _safe_send(ws, {"type": "error", "message": str(e)})
+        await ws.close(code=1008)
+        return
+    try:
         start = await ws.receive_json()
     except (WebSocketDisconnect, json.JSONDecodeError):
         return
@@ -105,16 +115,44 @@ async def conversation_ws(ws: WebSocket) -> None:
         return
 
     async with _slots:
-        await _run_session(ws, LiveSettings.from_dict(start), user.id)
+        await _run_session(ws, LiveSettings.from_dict(start), user, limits)
 
 
-async def _run_session(ws: WebSocket, settings: LiveSettings, user_id: int) -> None:
+@dataclass
+class SessionLimits:
+    max_seconds: int
+    pronunciation: bool  # user may use (Azure) pronunciation scoring
+
+
+async def _session_limits(user: User) -> SessionLimits:
+    """Conversation must be allowed with minutes left today; the session is capped at what is left."""
+    s = get_settings()
+    async with SessionLocal() as db:
+        await access.ensure_quota(db, user, Feature.CONVERSATION)
+        left = await access.remaining_today(db, user, Feature.CONVERSATION)
+        try:
+            await access.ensure_feature(db, user, Feature.PRONUNCIATION)
+            pronunciation = True
+        except access.AccessError:
+            pronunciation = False
+    max_minutes = s.max_live_session_minutes if left is None else min(s.max_live_session_minutes, left)
+    return SessionLimits(max_seconds=max_minutes * 60, pronunciation=pronunciation)
+
+
+async def _run_session(ws: WebSocket, settings: LiveSettings, user: User, limits: SessionLimits) -> None:
+    user_id = user.id
     s = get_settings()
     client = get_genai_client()
     transcript = Transcript()
     started = time.monotonic()
     async with SessionLocal() as db:
-        record = ConversationSession(user_id=user_id, level=settings.level, scenario=settings.scenario, voice=VOICE)
+        record = ConversationSession(
+            user_id=user_id,
+            level=settings.level,
+            scenario=settings.scenario,
+            topic=settings.custom_title,
+            voice=VOICE,
+        )
         db.add(record)
         await db.commit()
         record_id = record.id
@@ -123,11 +161,11 @@ async def _run_session(ws: WebSocket, settings: LiveSettings, user_id: int) -> N
     # Browser input is buffered so it survives Gemini reconnects (Live connections get GoAway after ~10 min).
     inbox: asyncio.Queue[tuple[str, Any]] = asyncio.Queue()
     reader = asyncio.create_task(_read_browser(ws, inbox, transcript))
-    coach = _pronunciation_coach(ws, inbox, transcript)
+    coach = _pronunciation_coach(ws, inbox, transcript, user, limits.pronunciation)
     resume: dict[str, str | None] = {"handle": None}
     first = True
     try:
-        async with asyncio.timeout(s.max_live_session_minutes * 60):
+        async with asyncio.timeout(limits.max_seconds):
             while True:
                 async with client.aio.live.connect(
                     model=s.live_model, config=live_config(settings, resume["handle"], coach.enabled)
@@ -153,9 +191,7 @@ async def _run_session(ws: WebSocket, settings: LiveSettings, user_id: int) -> N
                         continue  # reconnect transparently with the resumption handle
                     break  # learner stopped / disconnected
     except TimeoutError:
-        await _safe_send(
-            ws, {"type": "error", "message": f"Buổi học đã đạt giới hạn {s.max_live_session_minutes} phút."}
-        )
+        await _safe_send(ws, {"type": "error", "message": f"Buổi học đã đạt giới hạn {limits.max_seconds // 60} phút."})
     except WebSocketDisconnect:
         pass
     except Exception as e:  # surface provider errors (quota, 503, ...) to the UI
@@ -164,7 +200,10 @@ async def _run_session(ws: WebSocket, settings: LiveSettings, user_id: int) -> N
     finally:
         reader.cancel()
         coach.close()
-        await _save(record_id, transcript, int(time.monotonic() - started))
+        duration = int(time.monotonic() - started)
+        await _save(record_id, transcript, duration)
+        async with SessionLocal() as db:  # Gemini Live is billed for the whole connection
+            await access.record_usage(db, user_id, Feature.CONVERSATION, math.ceil(duration / 60))
         try:
             await ws.close()
         except Exception:  # noqa: BLE001 — the browser already disconnected
@@ -212,11 +251,21 @@ async def _read_browser(ws: WebSocket, inbox: asyncio.Queue, transcript: Transcr
         await inbox.put(("stop", None))
 
 
-def _pronunciation_coach(ws: WebSocket, inbox: asyncio.Queue, transcript: Transcript) -> PronunciationCoach:
-    """Scores each spoken learner turn (Azure); shows it in the UI, saves it, and tells the tutor model."""
+def _pronunciation_coach(
+    ws: WebSocket, inbox: asyncio.Queue, transcript: Transcript, user: User, allowed: bool
+) -> PronunciationCoach:
+    """Scores each spoken learner turn (Azure); shows it in the UI, saves it, and tells the tutor model.
+    Each scored turn counts against the user's daily pronunciation limit."""
     s = get_settings()
 
+    async def allow() -> bool:
+        async with SessionLocal() as db:
+            left = await access.remaining_today(db, user, Feature.PRONUNCIATION)
+        return left is None or left > 0
+
     async def on_result(turn_index: int, result: TurnPronunciation) -> None:
+        async with SessionLocal() as db:
+            await access.record_usage(db, user.id, Feature.PRONUNCIATION)
         data = result.to_dict()
         transcript.attach_pronunciation(turn_index, data)
         await _safe_send(ws, {"type": "pronunciation", **data})
@@ -224,7 +273,7 @@ def _pronunciation_coach(ws: WebSocket, inbox: asyncio.Queue, transcript: Transc
     async def send_note(note: str) -> None:
         await inbox.put(("note", note))
 
-    return PronunciationCoach(s.live_pronunciation and s.azure_enabled, on_result, send_note)
+    return PronunciationCoach(s.live_pronunciation and s.azure_enabled and allowed, on_result, send_note, allow)
 
 
 async def _forward(inbox: asyncio.Queue, session: Any, coach: PronunciationCoach) -> None:

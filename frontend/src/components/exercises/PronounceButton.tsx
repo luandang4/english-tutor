@@ -5,10 +5,12 @@ import type { PronunciationResult } from '../../api/types'
 import { PcmRecorder } from '../../lib/audio/recorder'
 import { scoreTone } from '../../lib/format'
 import { ErrorBox, Icon, Spinner } from '../ui'
+import { useAccess } from '../../lib/access'
 
 /** Record the learner saying `text` and score it with Azure Pronunciation Assessment. */
 export function PronounceButton({ text, cardId, label = 'Luyện phát âm' }: { text: string; cardId?: number; label?: string }) {
   const { data: meta } = useMeta()
+  const { can } = useAccess()
   const assess = useAssessPronunciation()
   const [recording, setRecording] = useState(false)
   const [level, setLevel] = useState(0)
@@ -17,7 +19,7 @@ export function PronounceButton({ text, cardId, label = 'Luyện phát âm' }: {
 
   useEffect(() => () => void rec.current?.stop(), [])
 
-  if (meta && !meta.pronunciation_enabled) return null
+  if ((meta && !meta.pronunciation_enabled) || !can('pronunciation')) return null
 
   const finish = () => {
     const r = rec.current

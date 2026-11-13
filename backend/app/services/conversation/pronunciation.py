@@ -147,8 +147,15 @@ class PronunciationCoach:
     current answer, so a note that arrives mid-answer waits for the end of that answer.
     """
 
-    def __init__(self, enabled: bool, on_result: ResultHandler, send_note: NoteSender) -> None:
+    def __init__(
+        self,
+        enabled: bool,
+        on_result: ResultHandler,
+        send_note: NoteSender,
+        allow: Callable[[], Awaitable[bool]] | None = None,
+    ) -> None:
         self.enabled = enabled
+        self._allow = allow  # per-turn quota check (daily limit)
         self._on_result = on_result
         self._send_note = send_note
         self._turn = LearnerTurn()
@@ -173,7 +180,7 @@ class PronunciationCoach:
         transcript often arrives after the answer has started — so score it, and deliver waiting notes."""
         self._tutor_speaking = False
         turn = self._turn.take() if self.enabled else None
-        if turn:
+        if turn and (self._allow is None or await self._allow()):
             task = asyncio.create_task(self._assess(turn_index, *turn))
             self._tasks.add(task)
             task.add_done_callback(self._tasks.discard)

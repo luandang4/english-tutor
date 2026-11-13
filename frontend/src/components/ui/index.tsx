@@ -9,6 +9,7 @@ import { STATUS_LABEL, scoreTone } from '../../lib/format'
 import { Icon } from './Icon'
 
 export { Icon, type IconName } from './Icon'
+export { PasswordInput } from './PasswordInput'
 
 export function PageHeader(props: {
   title: ReactNode

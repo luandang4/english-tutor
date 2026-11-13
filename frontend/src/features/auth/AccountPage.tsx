@@ -1,8 +1,9 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 
 import { useChangePassword, useLogout, useMe } from '../../api/hooks'
-import { AudioSourceSelect, ErrorBox, Icon, PageHeader, Spinner, SpeakButton } from '../../components/ui'
+import { AudioSourceSelect, ErrorBox, Icon, PageHeader, PasswordInput, Spinner, SpeakButton } from '../../components/ui'
+import { passwordStrongEnough } from '../../lib/password'
 import './auth.css'
 
 export function AccountPage() {
@@ -34,6 +35,12 @@ export function AccountPage() {
         </button>
       </div>
 
+      {me.is_admin && (
+        <Link to="/admin" className="card row admin-link">
+          <Icon name="shield" /> <b className="spacer">Trang quản trị</b> <Icon name="arrowRight" size={16} />
+        </Link>
+      )}
+
       <div className="card stack">
         <div className="card-title" style={{ marginBottom: 0 }}>
           <h3>Âm thanh phát âm</h3>
@@ -63,37 +70,21 @@ export function AccountPage() {
         <div className="card-title" style={{ marginBottom: 0 }}>
           <h3>Đổi mật khẩu</h3>
         </div>
-        <label className="field">
-          Mật khẩu hiện tại
-          <input
-            className="input"
-            type="password"
-            value={current}
-            onChange={(e) => setCurrent(e.target.value)}
-            required
-            autoComplete="current-password"
-          />
-        </label>
-        <label className="field">
-          Mật khẩu mới
-          <input
-            className="input"
-            type="password"
-            value={next}
-            onChange={(e) => setNext(e.target.value)}
-            required
-            minLength={8}
-            maxLength={128}
-            autoComplete="new-password"
-            placeholder="Ít nhất 8 ký tự"
-          />
-        </label>
+        <PasswordInput label="Mật khẩu hiện tại" value={current} onChange={setCurrent} autoComplete="current-password" />
+        <PasswordInput
+          label="Mật khẩu mới"
+          value={next}
+          onChange={setNext}
+          autoComplete="new-password"
+          showRules
+          placeholder="Ít nhất 8 ký tự, có chữ và số"
+        />
         {change.error && <ErrorBox error={change.error} />}
         {change.isSuccess && (
           <div className="alert success">Đã đổi mật khẩu. Các thiết bị khác đã được đăng xuất.</div>
         )}
         <div>
-          <button className="btn primary" type="submit" disabled={change.isPending}>
+          <button className="btn primary" type="submit" disabled={change.isPending || !passwordStrongEnough(next)}>
             {change.isPending && <Spinner small />} Đổi mật khẩu
           </button>
         </div>

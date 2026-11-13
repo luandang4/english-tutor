@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom'
 
-import { useLogin, useMe, useRegister } from '../../api/hooks'
-import { ErrorBox, Loading, Spinner } from '../../components/ui'
+import { useLogin, useMe, useMeta, useRegister } from '../../api/hooks'
+import { ErrorBox, Loading, PasswordInput, Spinner } from '../../components/ui'
+import { passwordStrongEnough } from '../../lib/password'
 import './auth.css'
 
 /** Only allow in-app redirects after login (no open redirect to other sites). */
@@ -12,6 +13,7 @@ function safeNext(raw: string | null): string {
 
 export function AuthPage({ mode }: { mode: 'login' | 'register' }) {
   const { data: me, isPending } = useMe()
+  const { data: meta } = useMeta()
   const [params] = useSearchParams()
   const next = safeNext(params.get('next'))
   const navigate = useNavigate()
@@ -25,6 +27,7 @@ export function AuthPage({ mode }: { mode: 'login' | 'register' }) {
   if (me) return <Navigate to={next} replace />
 
   const isLogin = mode === 'login'
+  const closed = !isLogin && meta?.registration_open === false
   const mutation = isLogin ? login : register
   const submit = (e: { preventDefault(): void }) => {
     e.preventDefault()
@@ -76,24 +79,26 @@ export function AuthPage({ mode }: { mode: 'login' | 'register' }) {
             placeholder="ban@example.com"
           />
         </label>
-        <label className="field">
-          Mật khẩu
-          <input
-            className="input"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            minLength={isLogin ? undefined : 8}
-            maxLength={128}
-            autoComplete={isLogin ? 'current-password' : 'new-password'}
-            placeholder={isLogin ? '••••••••' : 'Ít nhất 8 ký tự'}
-          />
-        </label>
+        <PasswordInput
+          label="Mật khẩu"
+          value={password}
+          onChange={setPassword}
+          autoComplete={isLogin ? 'current-password' : 'new-password'}
+          showRules={!isLogin}
+          placeholder={isLogin ? '••••••••' : 'Ít nhất 8 ký tự, có chữ và số'}
+        />
 
+        {closed && <div className="alert info">Đăng ký tài khoản mới đang tạm đóng. Hãy liên hệ admin.</div>}
+        {!isLogin && !closed && (
+          <p className="small muted">Tài khoản mới cần admin duyệt trước khi dùng các tính năng học.</p>
+        )}
         {mutation.error && <ErrorBox error={mutation.error} />}
 
-        <button className="btn primary auth-submit" type="submit" disabled={mutation.isPending}>
+        <button
+          className="btn primary auth-submit"
+          type="submit"
+          disabled={mutation.isPending || (!isLogin && (closed || !passwordStrongEnough(password)))}
+        >
           {mutation.isPending && <Spinner small />}
           {isLogin ? 'Đăng nhập' : 'Tạo tài khoản'}
         </button>

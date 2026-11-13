@@ -13,6 +13,7 @@ from app.core.security import (
     hash_password,
     needs_rehash,
     new_session_token,
+    password_problem,
     token_hash,
     verify_password,
 )
@@ -23,6 +24,7 @@ from app.models.pronunciation import PronunciationAttempt
 from app.models.user import AuthSession, User
 from app.models.vocab import VocabCard
 from app.models.writing import WritingTask
+from app.services import access
 
 OWNED_MODELS = (Lesson, WritingTask, VocabCard, ConversationSession, PronunciationAttempt)
 
@@ -33,24 +35,40 @@ class AuthError(Exception):
         self.status = status
 
 
+def check_password_strength(password: str) -> None:
+    if problem := password_problem(password):
+        raise AuthError(problem, 422)
+
+
 def normalize_email(email: str) -> str:
     return email.strip().lower()
 
 
 async def register(session: AsyncSession, *, email: str, password: str, display_name: str) -> User:
-    """Self-service sign-up from the web (only while ALLOW_REGISTRATION is on)."""
-    if not get_settings().allow_registration:
+    """Self-service sign-up from the web. New accounts get the admin's default features (none = wait for
+    approval), so open sign-up cannot be used to spend AI quota."""
+    if not await access.registration_open(session):
         raise AuthError("Đăng ký tài khoản mới đang tắt.", 403)
     return await create_user(session, email=email, password=password, display_name=display_name)
 
 
-async def create_user(session: AsyncSession, *, email: str, password: str, display_name: str) -> User:
-    """Create an account (also used by scripts/create_user.py when web sign-up is closed)."""
+async def create_user(
+    session: AsyncSession, *, email: str, password: str, display_name: str, admin: bool = False
+) -> User:
+    """Create an account (also used by scripts/create_user.py). The very first account becomes admin."""
+    check_password_strength(password)
     email = normalize_email(email)
     if await session.scalar(select(User.id).where(User.email == email)):
         raise AuthError("Email này đã được đăng ký.", 409)
     is_first = not await session.scalar(select(User.id).limit(1))
-    user = User(email=email, display_name=display_name.strip(), password_hash=hash_password(password))
+    is_admin = admin or is_first
+    user = User(
+        email=email,
+        display_name=display_name.strip(),
+        password_hash=hash_password(password),
+        is_admin=is_admin,
+        features=access.ALL_FEATURES if is_admin else (await access.get_system(session)).default_features,
+    )
     session.add(user)
     await session.flush()
     if is_first:
@@ -72,6 +90,8 @@ async def authenticate(session: AsyncSession, *, email: str, password: str) -> U
         raise AuthError("Email hoặc mật khẩu không đúng.", 401)
     if not verify_password(user.password_hash, password):
         raise AuthError("Email hoặc mật khẩu không đúng.", 401)
+    if not user.is_active:
+        raise AuthError("Tài khoản đã bị khoá. Hãy liên hệ admin.", 403)
     if needs_rehash(user.password_hash):
         user.password_hash = hash_password(password)
     user.last_login_at = utcnow()
@@ -81,6 +101,7 @@ async def authenticate(session: AsyncSession, *, email: str, password: str) -> U
 async def create_session(session: AsyncSession, user: User) -> str:
     token = new_session_token()
     now = utcnow()
+    user.last_login_at = now  # sign-up also counts as a login
     await session.execute(delete(AuthSession).where(AuthSession.expires_at < now))  # housekeeping
     session.add(
         AuthSession(
@@ -99,7 +120,8 @@ async def user_for_token(session: AsyncSession, token: str | None) -> User | Non
     row = await session.scalar(select(AuthSession).where(AuthSession.token_hash == token_hash(token)))
     if row is None or row.expires_at < utcnow():
         return None
-    return await session.get(User, row.user_id)
+    user = await session.get(User, row.user_id)
+    return user if user is not None and user.is_active else None
 
 
 async def end_session(session: AsyncSession, token: str | None) -> None:
@@ -111,6 +133,7 @@ async def end_session(session: AsyncSession, token: str | None) -> None:
 async def change_password(session: AsyncSession, user: User, current: str, new: str, keep_token: str) -> None:
     if not verify_password(user.password_hash, current):
         raise AuthError("Mật khẩu hiện tại không đúng.", 400)
+    check_password_strength(new)
     user.password_hash = hash_password(new)
     # sign out every other device
     await session.execute(

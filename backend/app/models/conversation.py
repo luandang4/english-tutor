@@ -16,7 +16,8 @@ class ConversationSession(TimestampMixin, Base):
     # Owner. Nullable only for rows created before accounts existed (claimed by the first registered user).
     user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
     level: Mapped[str] = mapped_column(String(4))
-    scenario: Mapped[str] = mapped_column(String(40))
+    scenario: Mapped[str] = mapped_column(String(40))  # SCENARIOS key or "custom"
+    topic: Mapped[str | None] = mapped_column(String(120), nullable=True)  # learner's own scenario title
     voice: Mapped[str] = mapped_column(String(20))
     ended_at: Mapped[datetime | None] = mapped_column(UTCDateTime(), nullable=True)
     duration_seconds: Mapped[int] = mapped_column(Integer, default=0)

@@ -4,7 +4,7 @@ A personal AI English tutor for Vietnamese learners.
 
 | Feature | What it does | AI |
 |---|---|---|
-| 🎙️ **Conversation** | Talk to tutor "Emma" by voice in real-life scenarios. Audio-reactive orb, live transcript, saved history | Gemini Live |
+| 🎙️ **Conversation** | Talk to tutor "Emma" by voice in real-life scenarios or your own topic. Audio-reactive orb, live transcript, saved history | Gemini Live |
 | 📖 **Vocabulary** | Pick a preset topic (or type your own topic + wishes) and the AI writes 10 new words (IPA, examples, collocations, audio) plus exercises. Words go into the review deck | Gemini + Kokoro |
 | 🧩 **Grammar** | Pick a grammar point and get an explanation in Vietnamese, formulas, common mistakes Vietnamese learners make, and 10 graded exercises | Gemini |
 | ✍️ **Writing** | Pick a task type and the AI writes the prompt, an outline and useful phrases. Each essay is graded on 4 criteria with highlighted corrections | Gemini |
@@ -12,6 +12,7 @@ A personal AI English tutor for Vietnamese learners.
 | 🔊 **Pronunciation** | Record a word and get scores per word and per phoneme | **Azure Speech** |
 | 📊 **Dashboard** | Streak, progress per skill, 4-week activity, recent work | — |
 | 👤 **Accounts** | Sign up and log in. Each account has its own lessons, word deck, writing, conversations and progress | — |
+| 🛡️ **Admin** | Grant features per user, switch features off system-wide, daily limits per user, approve new sign-ups | — |
 
 Vendor rule: **Azure is used only for pronunciation scoring; Gemini handles everything else.** Word audio
 is free: the Google Translate voice (gTTS), then real speaker recordings (Wiktionary). Example sentences

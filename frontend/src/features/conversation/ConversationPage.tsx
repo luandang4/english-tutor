@@ -11,6 +11,7 @@ import { Orb, type OrbMode } from '../../orb/orb'
 import { TurnPronunciationView } from './TurnPronunciationView'
 import './conversation.css'
 
+const CUSTOM = 'custom' // learner-defined scenario (title + wishes), see services/conversation/live.py
 const USER_TALK_RMS = 0.025 // mic level that counts as "the learner is speaking"
 
 const ROLE_TEXT: Record<OrbMode, string> = {
@@ -40,6 +41,10 @@ export function ConversationPage() {
   const qc = useQueryClient()
   const [level, setLevel] = useLevel()
   const [scenario, setScenario] = usePreference('et.convo.scenario', 'free_talk')
+  const [customTitle, setCustomTitle] = usePreference('et.convo.customTitle', '')
+  const [customRequest, setCustomRequest] = usePreference('et.convo.customRequest', '')
+  const isCustom = scenario === CUSTOM
+  const customReady = !isCustom || customTitle.trim().length >= 2
   // Headphones on: the mic stays open while Emma talks (you can interrupt). Off: the mic is paused while she
   // speaks, so speaker sound is not picked up as the learner's voice.
   const [headphones, setHeadphones] = usePreference('et.convo.headphones', false)
@@ -161,7 +166,11 @@ export function ConversationPage() {
     session.halfDuplex = halfDuplex
     sessionRef.current = session
     try {
-      await session.start({ level, scenario })
+      await session.start(
+        isCustom
+          ? { level, scenario, custom_title: customTitle.trim(), custom_request: customRequest.trim() }
+          : { level, scenario },
+      )
     } catch (e) {
       push('error', `Không truy cập được micro: ${e instanceof Error ? e.message : e}`)
       session.stop()
@@ -233,13 +242,40 @@ export function ConversationPage() {
                     {s.label}
                   </option>
                 ))}
+                <option value={CUSTOM}>✨ Tình huống của bạn…</option>
               </select>
             </label>
+            {isCustom && (
+              <div className="custom-scenario">
+                <label className="field">
+                  Chủ đề / tình huống
+                  <input
+                    className="input"
+                    value={customTitle}
+                    onChange={(e) => setCustomTitle(e.target.value)}
+                    maxLength={120}
+                    placeholder="VD: Phỏng vấn xin việc vị trí kế toán"
+                  />
+                </label>
+                <label className="field">
+                  Yêu cầu thêm (tuỳ chọn)
+                  <textarea
+                    className="textarea"
+                    rows={2}
+                    value={customRequest}
+                    onChange={(e) => setCustomRequest(e.target.value)}
+                    maxLength={1000}
+                    placeholder="VD: Emma đóng vai nhà tuyển dụng khó tính, hỏi về kinh nghiệm làm việc với Excel"
+                  />
+                </label>
+              </div>
+            )}
             <label className="toggle">
               <input type="checkbox" checked={headphones} onChange={(e) => setHeadphones(e.target.checked)} />
               <span className="switch" aria-hidden="true" />
               <span>
-                Đeo tai nghe
+                Đeo tai nghe{' '}
+                <small>Bật nếu đang đeo tai nghe để có thể ngắt lời Emma. Tắt thì mic tự tạm ngắt khi Emma nói.</small>
               </span>
             </label>
           </div>
@@ -273,7 +309,7 @@ export function ConversationPage() {
         <button
           className={`mic ${running ? 'stop' : ''}`}
           onClick={running ? stop : start}
-          disabled={mode === 'connecting'}
+          disabled={mode === 'connecting' || (!running && !customReady)}
           aria-label={running ? 'Kết thúc buổi học' : 'Bắt đầu buổi học'}
         >
           <span className="mic-ring" ref={ringRef} />

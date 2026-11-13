@@ -18,7 +18,7 @@ def test_register_login_logout(app_client) -> None:
     assert cookie
 
     dup = UserClient().post(
-        "/api/auth/register", json={"email": "BOB@example.com", "password": "another-pass", "display_name": "x"}
+        "/api/auth/register", json={"email": "BOB@example.com", "password": "another-pass-1", "display_name": "x"}
     )
     assert dup.status_code == 409  # emails are case-insensitive
 

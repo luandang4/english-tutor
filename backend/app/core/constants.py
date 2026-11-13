@@ -9,6 +9,25 @@ class Skill(StrEnum):
     WRITING = "writing"
 
 
+class Feature(StrEnum):
+    """Features an admin can grant per user and switch off system-wide (anything that spends AI quota)."""
+
+    CONVERSATION = "conversation"  # Gemini Live
+    VOCABULARY = "vocabulary"  # Gemini
+    GRAMMAR = "grammar"  # Gemini
+    WRITING = "writing"  # Gemini
+    PRONUNCIATION = "pronunciation"  # Azure
+
+
+FEATURE_INFO: dict[str, dict[str, str]] = {
+    Feature.CONVERSATION: {"label": "Hội thoại", "unit": "phút"},
+    Feature.VOCABULARY: {"label": "Từ vựng", "unit": "lượt"},
+    Feature.GRAMMAR: {"label": "Ngữ pháp", "unit": "lượt"},
+    Feature.WRITING: {"label": "Luyện viết", "unit": "lượt"},
+    Feature.PRONUNCIATION: {"label": "Chấm phát âm", "unit": "lượt"},
+}
+
+
 class LessonStatus(StrEnum):
     GENERATING = "generating"
     READY = "ready"

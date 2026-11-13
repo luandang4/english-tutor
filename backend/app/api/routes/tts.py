@@ -1,11 +1,11 @@
 """Pronunciation audio for words / example sentences (free sources, cached) — see services/speech/tts.py."""
 
-from fastapi import APIRouter, HTTPException, Query, Response
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 
-from app.api.deps import CurrentUser
+from app.api.deps import CurrentUser, require_any_feature
 from app.services.speech.tts import TTSError, synthesize
 
-router = APIRouter(prefix="/tts", tags=["tts"])
+router = APIRouter(prefix="/tts", tags=["tts"], dependencies=[Depends(require_any_feature)])
 
 
 @router.get("", response_class=Response)

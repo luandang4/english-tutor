@@ -35,10 +35,44 @@ def app_client(fake_ai: FakeAI) -> Iterator[TestClient]:
     global _shared
     with TestClient(app) as c:
         _shared = c
+        grant_new_users(ALL_FEATURES)  # most tests want usable accounts; access tests change this
+        new_user_client("owner@example.com", "Owner")  # the first account becomes admin: keep it out of tests
         yield c
 
 
 COOKIE = "et_session"
+ALL_FEATURES = ["conversation", "vocabulary", "grammar", "writing", "pronunciation"]
+
+
+def set_system(**values: object) -> None:
+    """Write admin system settings straight into the test DB (as an admin would via the panel)."""
+    import json
+    import sqlite3
+
+    db = sqlite3.connect(_tmp / "test.db")
+    row = db.execute("SELECT value FROM app_settings WHERE key = 'system'").fetchone()
+    data = {**(json.loads(row[0]) if row else {}), **values}
+    db.execute(
+        "INSERT INTO app_settings (key, value) VALUES ('system', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+        (json.dumps(data),),
+    )
+    db.commit()
+    db.close()
+
+
+def make_admin(email: str) -> None:
+    import sqlite3
+
+    db = sqlite3.connect(_tmp / "test.db")
+    db.execute("UPDATE users SET is_admin = 1 WHERE email = ?", (email.lower(),))
+    db.commit()
+    db.close()
+
+
+def grant_new_users(features: list[str]) -> None:
+    set_system(default_features=features)
+
+
 _shared: TestClient | None = None
 
 
@@ -63,6 +97,12 @@ class UserClient:
 
     def post(self, url: str, **kw):  # noqa: ANN003, ANN201
         return self.request("POST", url, **kw)
+
+    def patch(self, url: str, **kw):  # noqa: ANN003, ANN201
+        return self.request("PATCH", url, **kw)
+
+    def put(self, url: str, **kw):  # noqa: ANN003, ANN201
+        return self.request("PUT", url, **kw)
 
     def delete(self, url: str, **kw):  # noqa: ANN003, ANN201
         return self.request("DELETE", url, **kw)

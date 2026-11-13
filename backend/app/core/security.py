@@ -35,3 +35,17 @@ def token_hash(token: str) -> str:
 
 # Verified against a dummy hash when the email doesn't exist, so login timing doesn't reveal accounts.
 DUMMY_HASH = _hasher.hash(secrets.token_urlsafe(16))
+
+
+PASSWORD_RULES = "ít nhất 8 ký tự, gồm cả chữ cái và chữ số"
+
+
+def password_problem(password: str) -> str | None:
+    """Why a new password is too weak, or None. Same rules as the hint shown in the UI."""
+    if len(password) < 8:
+        return "Mật khẩu cần ít nhất 8 ký tự."
+    if not any(c.isalpha() for c in password):
+        return "Mật khẩu cần có ít nhất 1 chữ cái."
+    if not any(c.isdigit() for c in password):
+        return "Mật khẩu cần có ít nhất 1 chữ số."
+    return None

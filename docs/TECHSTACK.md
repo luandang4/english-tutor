@@ -102,6 +102,34 @@ task that uses them (`services/topics.py`).
   while she speaks.
 - The tutor always uses the Gemini voice `Kore` (no voice picker).
 
+## Admin, permissions & daily limits
+
+Anything that spends AI quota is a **feature**: `conversation`, `vocabulary`, `grammar`, `writing`
+(Gemini) and `pronunciation` (Azure). `services/access.py` decides access; a feature is usable when:
+
+1. the account is active (locked accounts are signed out everywhere and cannot log in),
+2. the feature is switched on system-wide (admin kill switch; applies to admins too),
+3. the user was granted it (admins have every feature),
+4. today's usage is under the daily limit (per user, admins exempt; conversation in minutes, the rest in
+   AI requests; day boundary in `TIMEZONE`).
+
+**Enforced by the API, not the UI.** Routers depend on `require_feature(...)`; actions that call an AI also
+run `access.ensure_quota()` + `record_usage()` (`usage_events` table). The conversation WebSocket checks the
+feature and caps the session at the minutes left today; live pronunciation scoring checks the pronunciation
+feature and its limit per turn. `/api/tts` needs an approved account. Denials are `403` (not allowed /
+switched off) or `429` (daily limit). The frontend hides or locks what `me.features` does not include
+(`FeatureGate`, nav lock icons), but a hand-crafted request gets the same 403 / 429.
+
+- System settings live in `app_settings` (key `system`): `features_enabled`, `daily_limits`,
+  `registration_open`, `default_features` (granted to new sign-ups; empty = **wait for admin approval**).
+- Web sign-up needs `ALLOW_REGISTRATION=true` in `.env` **and** the admin switch.
+- The first account ever created becomes admin; `deploy/create-user.sh EMAIL "Name" [--admin]` adds accounts
+  from the command line. Admins cannot lock or demote themselves (there is always one admin).
+- Admin UI: `/admin` (system switches + limits, users with grants / lock / admin, today's usage).
+- Learners see today's usage vs limits on the dashboard (`GET /api/auth/me/usage`).
+- Passwords: at least 8 characters with a letter and a digit (`core/security.py: password_problem`, same rules
+  shown live under the password field).
+
 ## Accounts & data isolation
 
 - Email and password accounts. Passwords are hashed with **Argon2id** (`argon2-cffi`).

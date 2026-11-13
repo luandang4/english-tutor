@@ -3,11 +3,12 @@
 from fastapi import APIRouter, Response, status
 from sqlalchemy import select
 
-from app.api.deps import CurrentUser, SessionDep, get_owned
+from app.api.deps import CurrentUser, SessionDep, get_owned, require_feature
+from app.core.constants import Feature
 from app.models.conversation import ConversationSession
 from app.schemas.api import ConversationDetail, ConversationSummary
 
-router = APIRouter(prefix="/conversations", tags=["conversation"])
+router = APIRouter(prefix="/conversations", tags=["conversation"], dependencies=[require_feature(Feature.CONVERSATION)])
 
 
 @router.get("", response_model=list[ConversationSummary])

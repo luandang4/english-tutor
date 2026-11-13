@@ -5,9 +5,10 @@ from sqlalchemy import select
 
 from app.api.deps import SessionDep
 from app.core.config import get_settings
-from app.core.constants import Skill
+from app.core.constants import FEATURE_INFO, Skill
 from app.models.topic import Topic
-from app.schemas.api import MetaOut, Option, TopicOut, level_options
+from app.schemas.api import FeatureInfo, MetaOut, Option, TopicOut, level_options
+from app.services import access
 from app.services.conversation.live import SCENARIOS
 
 router = APIRouter(tags=["catalog"])
@@ -19,11 +20,13 @@ async def health() -> dict[str, str]:
 
 
 @router.get("/meta", response_model=MetaOut)
-async def meta() -> MetaOut:
+async def meta(session: SessionDep) -> MetaOut:
     return MetaOut(
         levels=level_options(),
         scenarios=[Option(value=k, label=v["label"]) for k, v in SCENARIOS.items()],
+        features=[FeatureInfo(value=k, **v) for k, v in FEATURE_INFO.items()],
         pronunciation_enabled=get_settings().azure_enabled,
+        registration_open=await access.registration_open(session),
     )
 
 

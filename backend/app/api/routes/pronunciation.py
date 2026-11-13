@@ -2,13 +2,17 @@
 
 from fastapi import APIRouter, HTTPException, Query, Request
 
-from app.api.deps import CurrentUser, SessionDep, get_owned
+from app.api.deps import CurrentUser, SessionDep, get_owned, require_feature
+from app.core.constants import Feature
 from app.models.pronunciation import PronunciationAttempt
 from app.models.vocab import VocabCard
 from app.schemas.api import PhonemeOut, PronunciationOut, WordScoreOut
+from app.services import access
 from app.services.speech import azure
 
-router = APIRouter(prefix="/pronunciation", tags=["pronunciation"])
+router = APIRouter(
+    prefix="/pronunciation", tags=["pronunciation"], dependencies=[require_feature(Feature.PRONUNCIATION)]
+)
 MAX_BYTES = azure.SAMPLE_RATE * 2 * azure.MAX_SECONDS
 
 
@@ -26,10 +30,12 @@ async def assess(
     pcm = await request.body()
     if len(pcm) > MAX_BYTES:
         raise HTTPException(413, f"Ghi âm tối đa {azure.MAX_SECONDS} giây.")
+    await access.ensure_quota(session, user, Feature.PRONUNCIATION)
     try:
         result = await azure.assess(pcm, reference_text)
     except azure.PronunciationError as e:
         raise HTTPException(422, str(e)) from e
+    await access.record_usage(session, user.id, Feature.PRONUNCIATION)
 
     words = [
         WordScoreOut(

@@ -3,9 +3,10 @@
 from datetime import datetime
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.core.constants import LEVELS, Skill
+from app.core.security import password_problem
 
 LevelCode = Literal["A1", "A2", "B1", "B2", "C1"]
 
@@ -18,10 +19,18 @@ class ORM(BaseModel):
 EMAIL_PATTERN = r"^[^@\s]+@[^@\s]+\.[^@\s]+$"
 
 
+def _strong_password(value: str) -> str:
+    if problem := password_problem(value):
+        raise ValueError(problem)
+    return value
+
+
 class RegisterIn(BaseModel):
     email: str = Field(max_length=255, pattern=EMAIL_PATTERN)
     password: str = Field(min_length=8, max_length=128)
     display_name: str = Field(min_length=1, max_length=80)
+
+    _password = field_validator("password")(_strong_password)
 
 
 class LoginIn(BaseModel):
@@ -33,12 +42,55 @@ class PasswordChangeIn(BaseModel):
     current_password: str = Field(max_length=128)
     new_password: str = Field(min_length=8, max_length=128)
 
+    _password = field_validator("new_password")(_strong_password)
 
-class UserOut(ORM):
+
+class UserOut(BaseModel):
     id: int
     email: str
     display_name: str
     created_at: datetime
+    is_admin: bool
+    features: list[str] = Field(description="Features this user may use right now (grants + system switches)")
+    pending: bool = Field(description="Approved for nothing yet: waiting for an admin")
+
+
+class FeatureUsage(BaseModel):
+    feature: str
+    label: str
+    unit: str
+    used: int
+    limit: int | None = Field(description="Daily limit; null = unlimited")
+
+
+# ---------- admin ----------
+class SystemSettingsIO(BaseModel):
+    features_enabled: dict[str, bool]
+    registration_open: bool
+    default_features: list[str]
+    daily_limits: dict[str, int] = Field(description="Per user per day; 0 = unlimited")
+
+
+class SystemSettingsOut(SystemSettingsIO):
+    registration_allowed_by_server: bool = Field(description="ALLOW_REGISTRATION in .env (hard switch)")
+
+
+class AdminUserOut(BaseModel):
+    id: int
+    email: str
+    display_name: str
+    created_at: datetime
+    last_login_at: datetime | None
+    is_admin: bool
+    is_active: bool
+    features: list[str] = Field(description="Granted features (admins implicitly have all)")
+    usage_today: dict[str, int]
+
+
+class AdminUserPatch(BaseModel):
+    is_active: bool | None = None
+    is_admin: bool | None = None
+    features: list[str] | None = None
 
 
 # ---------- meta / topics ----------
@@ -47,10 +99,18 @@ class Option(BaseModel):
     label: str
 
 
+class FeatureInfo(BaseModel):
+    value: str
+    label: str
+    unit: str
+
+
 class MetaOut(BaseModel):
     levels: list[Option]
     scenarios: list[Option]
+    features: list[FeatureInfo]
     pronunciation_enabled: bool
+    registration_open: bool
 
 
 class TopicOut(ORM):
@@ -256,6 +316,7 @@ class ConversationSummary(ORM):
     id: int
     level: str
     scenario: str
+    topic: str | None = None
     voice: str
     created_at: datetime
     ended_at: datetime | None

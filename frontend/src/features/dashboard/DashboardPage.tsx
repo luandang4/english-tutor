@@ -1,15 +1,17 @@
 import { Link } from 'react-router-dom'
 
-import { useMe, useProgress } from '../../api/hooks'
+import { useMe, useProgress, useUsage } from '../../api/hooks'
+import type { Feature } from '../../api/types'
+import { useAccess } from '../../lib/access'
 import type { Skill } from '../../api/types'
-import { ErrorBox, Icon, Loading, type IconName } from '../../components/ui'
+import { ErrorBox, Icon, Loading, ProgressBar, type IconName } from '../../components/ui'
 import { SKILL_LABEL, scoreTone, timeAgo } from '../../lib/format'
 
-const QUICK: { to: string; icon: IconName; title: string; text: string; color: string }[] = [
-  { to: '/conversation', icon: 'mic', title: 'Hội thoại', text: 'Nói chuyện với Emma bằng giọng nói', color: '#ff7ac8' },
-  { to: '/vocabulary', icon: 'book', title: 'Từ vựng', text: 'Học 10 từ mới theo chủ đề', color: '#b794ff' },
-  { to: '/grammar', icon: 'grammar', title: 'Ngữ pháp', text: 'Giải thích dễ hiểu + bài tập', color: '#5ef0ff' },
-  { to: '/writing', icon: 'pen', title: 'Luyện viết', text: 'AI ra đề và chấm chi tiết', color: '#ff8fab' },
+const QUICK: { to: string; icon: IconName; title: string; text: string; color: string; feature: Feature }[] = [
+  { to: '/conversation', icon: 'mic', title: 'Hội thoại', text: 'Nói chuyện với Emma bằng giọng nói', color: '#ff7ac8', feature: 'conversation' },
+  { to: '/vocabulary', icon: 'book', title: 'Từ vựng', text: 'Học 10 từ mới theo chủ đề', color: '#b794ff', feature: 'vocabulary' },
+  { to: '/grammar', icon: 'grammar', title: 'Ngữ pháp', text: 'Giải thích dễ hiểu + bài tập', color: '#5ef0ff', feature: 'grammar' },
+  { to: '/writing', icon: 'pen', title: 'Luyện viết', text: 'AI ra đề và chấm chi tiết', color: '#ff8fab', feature: 'writing' },
 ]
 
 const KIND_ICON: Record<string, string> = { vocabulary: '📖', grammar: '🧩', writing: '✍️', conversation: '🎙️' }
@@ -25,6 +27,7 @@ function greeting(): string {
 export function DashboardPage() {
   const { data: p, error, isPending, refetch } = useProgress()
   const { data: me } = useMe()
+  const { can } = useAccess()
 
   return (
     <div className="page">
@@ -51,15 +54,19 @@ export function DashboardPage() {
 
       <div className="grid cols-4">
         {QUICK.map((q) => (
-          <Link key={q.to} to={q.to} className="quick">
+          <Link key={q.to} to={q.to} className={`quick ${can(q.feature) ? '' : 'locked'}`}>
             <span className="q-icon" style={{ background: `${q.color}22`, color: q.color }}>
               <Icon name={q.icon} />
             </span>
-            <h3>{q.title}</h3>
+            <h3>
+              {q.title} {!can(q.feature) && <Icon name="lock" size={14} />}
+            </h3>
             <p>{q.text}</p>
           </Link>
         ))}
       </div>
+
+      <UsageToday />
 
       {isPending ? (
         <Loading />
@@ -164,5 +171,36 @@ export function DashboardPage() {
         </>
       )}
     </div>
+  )
+}
+
+/** Today's use of each feature against the admin's daily limit. */
+function UsageToday() {
+  const { data } = useUsage()
+  const limited = (data ?? []).filter((u) => u.limit != null)
+  if (!limited.length) return null
+  return (
+    <section className="card usage-today">
+      <div className="card-title">
+        <h3>Lượt dùng hôm nay</h3>
+        <span className="small muted">Làm mới lúc 0h mỗi ngày</span>
+      </div>
+      <div className="usage-grid">
+        {limited.map((u) => {
+          const pct = Math.min(100, (u.used / (u.limit || 1)) * 100)
+          return (
+            <div key={u.feature} className="usage-item">
+              <div className="row small">
+                <span className="spacer">{u.label}</span>
+                <b className={pct >= 100 ? 'tone-low' : ''}>
+                  {u.used}/{u.limit} {u.unit}
+                </b>
+              </div>
+              <ProgressBar value={pct} />
+            </div>
+          )
+        })}
+      </div>
+    </section>
   )
 }

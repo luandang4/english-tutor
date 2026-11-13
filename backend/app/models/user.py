@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import ForeignKey, String
+from sqlalchemy import JSON, Boolean, ForeignKey, String, false, true
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base, TimestampMixin, UTCDateTime
@@ -14,6 +14,9 @@ class User(TimestampMixin, Base):
     display_name: Mapped[str] = mapped_column(String(80))
     password_hash: Mapped[str] = mapped_column(String(255))  # Argon2id
     last_login_at: Mapped[datetime | None] = mapped_column(UTCDateTime(), nullable=True)
+    is_admin: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, server_default=true())  # False = locked out
+    features: Mapped[list[str]] = mapped_column(JSON, default=list)  # granted Feature values (admins: all)
 
 
 class AuthSession(TimestampMixin, Base):

@@ -8,7 +8,8 @@ import './conversation.css'
 
 function useScenarioLabel() {
   const { data } = useMeta()
-  return (key: string) => data?.scenarios.find((s) => s.value === key)?.label ?? key
+  return (c: { scenario: string; topic: string | null }) =>
+    c.scenario === 'custom' && c.topic ? `✨ ${c.topic}` : (data?.scenarios.find((s) => s.value === c.scenario)?.label ?? c.scenario)
 }
 
 export function ConversationHistoryPage() {
@@ -41,7 +42,7 @@ export function ConversationHistoryPage() {
             <Link key={c.id} to={`/conversation/history/${c.id}`} className="list-item">
               <span className="icon">🎙️</span>
               <div className="body">
-                <b>{label(c.scenario)}</b>
+                <b>{label(c)}</b>
                 <div className="meta">
                   <span className="badge level">{c.level}</span>
                   <span>{formatDuration(c.duration_seconds)}</span>
@@ -78,7 +79,7 @@ export function ConversationDetailPage() {
     <div className="page">
       <PageHeader
         back={back}
-        title={label(data.scenario)}
+        title={label(data)}
         subtitle={`${data.level} · ${formatDuration(data.duration_seconds)} · ${new Date(data.created_at).toLocaleString('vi-VN')}`}
         actions={
           <button

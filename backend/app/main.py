@@ -5,9 +5,9 @@ import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.api.router import api_router
@@ -16,7 +16,7 @@ from app.core.config import BACKEND_DIR, get_settings
 from app.core.logging import setup_logging
 from app.db.session import SessionLocal, engine
 from app.seed.topics import seed_topics
-from app.services import tasks
+from app.services import access, tasks
 from app.services.lessons import fail_stale_jobs
 from app.services.speech import tts
 
@@ -67,10 +67,16 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+    app.add_exception_handler(access.AccessError, _access_denied)
     app.include_router(api_router)
     app.include_router(live.router)
     _mount_frontend(app, settings.frontend_dist)
     return app
+
+
+async def _access_denied(_: Request, exc: Exception) -> JSONResponse:
+    assert isinstance(exc, access.AccessError)
+    return JSONResponse({"detail": str(exc)}, status_code=exc.status)
 
 
 def _mount_frontend(app: FastAPI, dist: Path) -> None:

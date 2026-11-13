@@ -6,12 +6,54 @@ export type SubmissionStatus = 'grading' | 'graded' | 'failed'
 export type ExerciseType = 'multiple_choice' | 'fill_blank' | 'rewrite' | 'produce'
 export type Level = 'A1' | 'A2' | 'B1' | 'B2' | 'C1'
 
+export type Feature = 'conversation' | 'vocabulary' | 'grammar' | 'writing' | 'pronunciation'
+
 export interface User {
   id: number
   email: string
   display_name: string
   created_at: string
+  is_admin: boolean
+  /** Features usable right now (admin grants + system switches). The server enforces the same rules. */
+  features: Feature[]
+  /** Not approved for anything yet: waiting for an admin. */
+  pending: boolean
 }
+
+export interface FeatureInfo {
+  value: Feature
+  label: string
+  unit: string
+}
+
+export interface FeatureUsage extends FeatureInfo {
+  feature: Feature
+  used: number
+  limit: number | null
+}
+
+// ---------- admin ----------
+export interface SystemSettings {
+  features_enabled: Record<Feature, boolean>
+  registration_open: boolean
+  default_features: Feature[]
+  daily_limits: Record<Feature, number>
+  registration_allowed_by_server?: boolean
+}
+
+export interface AdminUser {
+  id: number
+  email: string
+  display_name: string
+  created_at: string
+  last_login_at: string | null
+  is_admin: boolean
+  is_active: boolean
+  features: Feature[]
+  usage_today: Partial<Record<Feature, number>>
+}
+
+export type AdminUserPatch = Partial<Pick<AdminUser, 'is_active' | 'is_admin' | 'features'>>
 
 export interface Option {
   value: string
@@ -21,7 +63,9 @@ export interface Option {
 export interface Meta {
   levels: Option[]
   scenarios: Option[]
+  features: FeatureInfo[]
   pronunciation_enabled: boolean
+  registration_open: boolean
 }
 
 export interface Topic {
@@ -234,6 +278,8 @@ export interface ConversationSummary {
   id: number
   level: Level
   scenario: string
+  /** Learner's own scenario title when scenario === 'custom'. */
+  topic: string | null
   voice: string
   created_at: string
   ended_at: string | null

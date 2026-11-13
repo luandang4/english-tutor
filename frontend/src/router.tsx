@@ -1,8 +1,23 @@
+import type { ComponentType } from 'react'
 import { createBrowserRouter } from 'react-router-dom'
 
+import type { Feature } from './api/types'
 import { AppShell } from './components/layout/AppShell'
+import { AdminGate, FeatureGate } from './components/layout/FeatureGate'
 import { EmptyState, Loading } from './components/ui'
 import { DashboardPage } from './features/dashboard/DashboardPage'
+
+/** Code-split route that is only rendered when the user may use `feature` (the API checks it too). */
+function gated(feature: Feature, load: () => Promise<ComponentType>) {
+  return () =>
+    load().then((Page) => ({
+      Component: () => (
+        <FeatureGate feature={feature}>
+          <Page />
+        </FeatureGate>
+      ),
+    }))
+}
 
 // Feature pages are code-split: each route loads its own chunk on first visit.
 export const router = createBrowserRouter([
@@ -21,45 +36,51 @@ export const router = createBrowserRouter([
       { path: '/', element: <DashboardPage /> },
       {
         path: '/conversation',
-        lazy: () => import('./features/conversation/ConversationPage').then((m) => ({ Component: m.ConversationPage })),
+        lazy: gated('conversation', () => import('./features/conversation/ConversationPage').then((m) => m.ConversationPage)),
       },
       {
         path: '/conversation/history',
-        lazy: () =>
-          import('./features/conversation/ConversationHistory').then((m) => ({ Component: m.ConversationHistoryPage })),
+        lazy: gated('conversation', () =>
+          import('./features/conversation/ConversationHistory').then((m) => m.ConversationHistoryPage),
+        ),
       },
       {
         path: '/conversation/history/:id',
-        lazy: () =>
-          import('./features/conversation/ConversationHistory').then((m) => ({ Component: m.ConversationDetailPage })),
+        lazy: gated('conversation', () =>
+          import('./features/conversation/ConversationHistory').then((m) => m.ConversationDetailPage),
+        ),
       },
       {
         path: '/vocabulary',
-        lazy: () =>
-          import('./features/lessons/LessonHubPage').then((m) => ({ Component: () => <m.LessonHubPage skill="vocabulary" /> })),
+        lazy: gated('vocabulary', () =>
+          import('./features/lessons/LessonHubPage').then((m) => () => <m.LessonHubPage skill="vocabulary" />),
+        ),
       },
       {
         path: '/vocabulary/lessons/:id',
-        lazy: () =>
-          import('./features/lessons/LessonPage').then((m) => ({ Component: () => <m.LessonPage skill="vocabulary" /> })),
+        lazy: gated('vocabulary', () =>
+          import('./features/lessons/LessonPage').then((m) => () => <m.LessonPage skill="vocabulary" />),
+        ),
       },
       {
         path: '/grammar',
-        lazy: () =>
-          import('./features/lessons/LessonHubPage').then((m) => ({ Component: () => <m.LessonHubPage skill="grammar" /> })),
+        lazy: gated('grammar', () =>
+          import('./features/lessons/LessonHubPage').then((m) => () => <m.LessonHubPage skill="grammar" />),
+        ),
       },
       {
         path: '/grammar/lessons/:id',
-        lazy: () =>
-          import('./features/lessons/LessonPage').then((m) => ({ Component: () => <m.LessonPage skill="grammar" /> })),
+        lazy: gated('grammar', () =>
+          import('./features/lessons/LessonPage').then((m) => () => <m.LessonPage skill="grammar" />),
+        ),
       },
       {
         path: '/writing',
-        lazy: () => import('./features/writing/WritingHubPage').then((m) => ({ Component: m.WritingHubPage })),
+        lazy: gated('writing', () => import('./features/writing/WritingHubPage').then((m) => m.WritingHubPage)),
       },
       {
         path: '/writing/tasks/:id',
-        lazy: () => import('./features/writing/WritingTaskPage').then((m) => ({ Component: m.WritingTaskPage })),
+        lazy: gated('writing', () => import('./features/writing/WritingTaskPage').then((m) => m.WritingTaskPage)),
       },
       {
         path: '/account',
@@ -68,6 +89,17 @@ export const router = createBrowserRouter([
       {
         path: '/review',
         lazy: () => import('./features/vocabulary/ReviewPage').then((m) => ({ Component: m.ReviewPage })),
+      },
+      {
+        path: '/admin',
+        lazy: () =>
+          import('./features/admin/AdminPage').then((m) => ({
+            Component: () => (
+              <AdminGate>
+                <m.AdminPage />
+              </AdminGate>
+            ),
+          })),
       },
       {
         path: '*',

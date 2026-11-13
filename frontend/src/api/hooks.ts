@@ -2,11 +2,14 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import { ApiError, api } from './client'
 import type {
+  AdminUser,
+  AdminUserPatch,
   AttemptOut,
   Card,
   ConversationDetail,
   ConversationSummary,
   DeckStats,
+  FeatureUsage,
   LessonDetail,
   LessonSummary,
   Level,
@@ -15,6 +18,7 @@ import type {
   PronunciationResult,
   Skill,
   Submission,
+  SystemSettings,
   Topic,
   TopicChoice,
   User,
@@ -37,6 +41,9 @@ export const keys = {
   conversations: ['conversations'] as const,
   conversation: (id: number) => ['conversation', id] as const,
   progress: ['progress'] as const,
+  usage: ['usage'] as const,
+  adminSystem: ['admin', 'system'] as const,
+  adminUsers: ['admin', 'users'] as const,
 }
 
 // ---------- auth ----------
@@ -325,3 +332,39 @@ export function useDeleteConversation() {
 
 // ---------- progress ----------
 export const useProgress = () => useQuery({ queryKey: keys.progress, queryFn: () => api.get<Progress>('/progress') })
+
+// ---------- quota / admin ----------
+export const useUsage = () =>
+  useQuery({ queryKey: keys.usage, queryFn: () => api.get<FeatureUsage[]>('/auth/me/usage') })
+
+export const useAdminSystem = () =>
+  useQuery({ queryKey: keys.adminSystem, queryFn: () => api.get<SystemSettings>('/admin/system') })
+
+export function useSaveSystem() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (body: SystemSettings) => api.put<SystemSettings>('/admin/system', body),
+    onSuccess: (data) => {
+      qc.setQueryData(keys.adminSystem, data)
+      // switches change what every page may show
+      qc.invalidateQueries({ queryKey: keys.me })
+      qc.invalidateQueries({ queryKey: keys.meta })
+      qc.invalidateQueries({ queryKey: keys.usage })
+    },
+  })
+}
+
+export const useAdminUsers = () =>
+  useQuery({ queryKey: keys.adminUsers, queryFn: () => api.get<AdminUser[]>('/admin/users') })
+
+export function useUpdateUser() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, patch }: { id: number; patch: AdminUserPatch }) =>
+      api.patch<AdminUser>(`/admin/users/${id}`, patch),
+    onSuccess: (user) => {
+      qc.setQueryData<AdminUser[]>(keys.adminUsers, (list) => list?.map((u) => (u.id === user.id ? user : u)))
+      qc.invalidateQueries({ queryKey: keys.me })
+    },
+  })
+}
