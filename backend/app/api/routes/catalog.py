@@ -29,7 +29,7 @@ async def meta() -> MetaOut:
 
 @router.get("/topics", response_model=list[TopicOut])
 async def list_topics(session: SessionDep, skill: Skill | None = None) -> list[Topic]:
-    q = select(Topic).order_by(Topic.skill, Topic.sort_order, Topic.id)
+    q = select(Topic).where(Topic.user_id.is_(None)).order_by(Topic.skill, Topic.sort_order, Topic.id)
     if skill:
         q = q.where(Topic.skill == skill)
     return list((await session.scalars(q)).all())

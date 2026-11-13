@@ -16,6 +16,7 @@ import type {
   Skill,
   Submission,
   Topic,
+  TopicChoice,
   User,
   WritingTaskDetail,
   WritingTaskSummary,
@@ -137,7 +138,8 @@ export function useRegenerateExercises(id: number) {
 export function useCreateLesson() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (body: { topic_id: number; level: Level }) => api.post<LessonDetail>('/lessons', body),
+    mutationFn: (body: TopicChoice & { level: Level; skill?: 'vocabulary' | 'grammar' }) =>
+      api.post<LessonDetail>('/lessons', body),
     onSuccess: (lesson) => {
       qc.setQueryData(keys.lesson(lesson.id), lesson)
       qc.invalidateQueries({ queryKey: keys.lessons(lesson.skill) })
@@ -246,7 +248,7 @@ export const useWritingTask = (id: number) =>
 export function useCreateWritingTask() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (body: { topic_id: number; level: Level }) => api.post<WritingTaskDetail>('/writing/tasks', body),
+    mutationFn: (body: TopicChoice & { level: Level }) => api.post<WritingTaskDetail>('/writing/tasks', body),
     onSuccess: (task) => {
       qc.setQueryData(keys.writingTask(task.id), task)
       qc.invalidateQueries({ queryKey: keys.writingTasks })

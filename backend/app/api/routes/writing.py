@@ -6,7 +6,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import CurrentUser, SessionDep, get_or_404, get_owned
 from app.core.constants import LessonStatus, Skill, SubmissionStatus
-from app.models.topic import Topic
 from app.models.user import User
 from app.models.writing import WritingSubmission, WritingTask
 from app.schemas.api import (
@@ -16,6 +15,7 @@ from app.schemas.api import (
     WritingTaskDetail,
     WritingTaskSummary,
 )
+from app.services import topics
 from app.services import writing as svc
 
 router = APIRouter(prefix="/writing", tags=["writing"])
@@ -30,9 +30,9 @@ async def _owned_submission(session: AsyncSession, submission_id: int, user: Use
 
 @router.post("/tasks", response_model=WritingTaskDetail, status_code=status.HTTP_201_CREATED)
 async def create_task(body: WritingTaskCreate, session: SessionDep, user: CurrentUser) -> WritingTaskDetail:
-    topic = await get_or_404(session, Topic, body.topic_id, "Chủ đề")
-    if topic.skill != Skill.WRITING:
-        raise HTTPException(400, "Chủ đề này không phải bài viết.")
+    topic = await topics.topic_for_new_item(session, user.id, Skill.WRITING, body.topic_id, body.custom)
+    if topic is None:
+        raise HTTPException(404, "Chủ đề viết không tồn tại.")
     task = await svc.create_task(session, topic, body.level, user.id)
     await session.refresh(task, ["submissions"])
     return svc.task_detail(task)
@@ -69,6 +69,8 @@ async def retry_task(task_id: int, session: SessionDep, user: CurrentUser) -> Wr
 async def delete_task(task_id: int, session: SessionDep, user: CurrentUser) -> Response:
     task = await get_owned(session, WritingTask, task_id, user, "Đề bài")
     await session.delete(task)
+    await session.flush()
+    await topics.delete_custom_topic_if_unused(session, task.topic_id)
     await session.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 

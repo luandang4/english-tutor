@@ -2,10 +2,11 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 
 import { useCreateWritingTask, useDeleteWritingTask, useTopics, useWritingTasks } from '../../api/hooks'
-import type { Topic } from '../../api/types'
+import type { CustomTopic, Topic } from '../../api/types'
 import { EmptyState, ErrorBox, Icon, LevelSelect, Loading, PageHeader, StatusBadge } from '../../components/ui'
 import { scoreTone, timeAgo } from '../../lib/format'
 import { useLevel } from '../../lib/preferences'
+import { CustomTopicForm } from '../lessons/CustomTopicForm'
 import { TopicGrid } from '../lessons/TopicGrid'
 
 export function WritingHubPage() {
@@ -22,6 +23,14 @@ export function WritingHubPage() {
     setBusyId(topic.id)
     create.mutate(
       { topic_id: topic.id, level },
+      { onSuccess: (t) => navigate(`/writing/tasks/${t.id}`), onSettled: () => setBusyId(null) },
+    )
+  }
+
+  const createCustom = (custom: CustomTopic) => {
+    setBusyId(-1)
+    create.mutate(
+      { custom, level },
       { onSuccess: (t) => navigate(`/writing/tasks/${t.id}`), onSettled: () => setBusyId(null) },
     )
   }
@@ -53,7 +62,10 @@ export function WritingHubPage() {
         ) : topics.error ? (
           <ErrorBox error={topics.error} onRetry={() => topics.refetch()} />
         ) : (
-          <TopicGrid topics={topics.data} busyId={busyId} onPick={pick} />
+          <>
+            <CustomTopicForm skill="writing" busy={busyId != null} onSubmit={createCustom} />
+            <TopicGrid topics={topics.data} busyId={busyId} onPick={pick} />
+          </>
         ))}
 
       {tab === 'mine' &&

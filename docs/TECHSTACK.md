@@ -62,6 +62,15 @@ Browser (React SPA)
 - **Writing scores** are recomputed server-side as the mean of the four criteria. Corrections that
   can't be located in the learner's text are dropped, so highlighting always works.
 
+## Custom topics
+
+Vocabulary, grammar and writing hubs have a "Chủ đề của bạn" form: a topic title plus optional wishes.
+`POST /api/lessons` / `POST /api/writing/tasks` accept either `topic_id` (preset) or `custom: {title, request}`
+(lessons also need `skill`). The service creates a private `Topic` row (`user_id` = owner, `focus` = wishes);
+the prompt treats the wishes as content guidance only (structure, counts and level stay fixed). Custom topics
+are never listed in `/api/topics`, cannot be used by other users (404), and are deleted with the last lesson /
+task that uses them (`services/topics.py`).
+
 ## Conversation tutor
 
 - **Level-locked behaviour** (`services/conversation/tutor.py`): one shared rule set plus a small `LEVEL_POLICY`
@@ -115,7 +124,7 @@ Browser (React SPA)
 
 ## Data model
 
-`users` + `auth_sessions` · `topics` (shared, seeded presets) · per user: `lessons` (+ `exercise_attempts`) ·
+`users` + `auth_sessions` · `topics` (seeded presets with `user_id` NULL, plus learners' custom topics with `user_id` set) · per user: `lessons` (+ `exercise_attempts`) ·
 `vocab_cards` (FSRS state) + `review_logs` · `writing_tasks` (+ `writing_submissions`) ·
 `conversation_sessions` (transcripts) · `pronunciation_attempts`.
 

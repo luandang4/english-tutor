@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 
 import { useCreateLesson, useDeleteLesson, useLessons, useTopics } from '../../api/hooks'
-import type { LessonSummary, Skill, Topic } from '../../api/types'
+import type { CustomTopic, LessonSummary, Skill, Topic } from '../../api/types'
 import {
   EmptyState,
   ErrorBox,
@@ -15,7 +15,10 @@ import {
 } from '../../components/ui'
 import { scoreTone, timeAgo } from '../../lib/format'
 import { useLevel } from '../../lib/preferences'
+import { CustomTopicForm } from './CustomTopicForm'
 import { TopicGrid } from './TopicGrid'
+
+const CUSTOM_BUSY = -1 // busyId while a custom-topic lesson is being created
 
 const COPY: Record<Exclude<Skill, 'writing'>, { title: string; subtitle: string; empty: string }> = {
   vocabulary: {
@@ -44,6 +47,17 @@ export function LessonHubPage({ skill }: { skill: 'vocabulary' | 'grammar' }) {
     setBusyId(topic.id)
     create.mutate(
       { topic_id: topic.id, level },
+      {
+        onSuccess: (lesson) => navigate(`/${skill}/lessons/${lesson.id}`),
+        onSettled: () => setBusyId(null),
+      },
+    )
+  }
+
+  const createCustom = (custom: CustomTopic) => {
+    setBusyId(CUSTOM_BUSY)
+    create.mutate(
+      { custom, skill, level },
       {
         onSuccess: (lesson) => navigate(`/${skill}/lessons/${lesson.id}`),
         onSettled: () => setBusyId(null),
@@ -81,7 +95,10 @@ export function LessonHubPage({ skill }: { skill: 'vocabulary' | 'grammar' }) {
         ) : topics.error ? (
           <ErrorBox error={topics.error} onRetry={() => topics.refetch()} />
         ) : (
-          <TopicGrid topics={topics.data} busyId={busyId} onPick={pick} />
+          <>
+            <CustomTopicForm skill={skill} busy={busyId != null} onSubmit={createCustom} />
+            <TopicGrid topics={topics.data} busyId={busyId} onPick={pick} />
+          </>
         ))}
 
       {tab === 'mine' &&

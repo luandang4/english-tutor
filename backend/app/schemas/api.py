@@ -3,7 +3,7 @@
 from datetime import datetime
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.core.constants import LEVELS, Skill
 
@@ -61,12 +61,39 @@ class TopicOut(ORM):
     title_vi: str
     description_vi: str
     icon: str
+    is_custom: bool = False
 
 
 # ---------- lessons ----------
-class LessonCreate(BaseModel):
-    topic_id: int
+class CustomTopicIn(BaseModel):
+    """A learner's own topic instead of a preset one."""
+
+    title: str = Field(min_length=2, max_length=120)
+    request: str = Field(default="", max_length=1000, description="Extra wishes for the AI (focus, context, style)")
+
+
+class TopicChoice(BaseModel):
+    """Exactly one of: a preset topic id, or a custom topic."""
+
+    topic_id: int | None = None
+    custom: CustomTopicIn | None = None
     level: LevelCode = "B1"
+
+    @model_validator(mode="after")
+    def _one_topic(self) -> "TopicChoice":
+        if (self.topic_id is None) == (self.custom is None):
+            raise ValueError("Chọn một chủ đề có sẵn hoặc nhập chủ đề riêng.")
+        return self
+
+
+class LessonCreate(TopicChoice):
+    skill: Literal["vocabulary", "grammar"] | None = Field(default=None, description="Required with `custom`")
+
+    @model_validator(mode="after")
+    def _skill_for_custom(self) -> "LessonCreate":
+        if self.custom is not None and self.skill is None:
+            raise ValueError("Cần chọn loại bài (từ vựng / ngữ pháp) cho chủ đề riêng.")
+        return self
 
 
 class LessonSummary(ORM):
@@ -162,9 +189,8 @@ class DeckAddOut(BaseModel):
 
 
 # ---------- writing ----------
-class WritingTaskCreate(BaseModel):
-    topic_id: int
-    level: LevelCode = "B1"
+class WritingTaskCreate(TopicChoice):
+    pass
 
 
 class SubmissionOut(ORM):

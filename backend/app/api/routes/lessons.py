@@ -9,7 +9,7 @@ from app.models.lesson import Lesson
 from app.models.topic import Topic
 from app.schemas.api import AttemptCreate, AttemptOut, DeckAddOut, LessonCreate, LessonDetail, LessonSummary
 from app.services import lessons as svc
-from app.services import srs
+from app.services import srs, topics
 from app.services.ai.client import AIUnavailableError
 
 router = APIRouter(prefix="/lessons", tags=["lessons"])
@@ -17,9 +17,16 @@ router = APIRouter(prefix="/lessons", tags=["lessons"])
 
 @router.post("", response_model=LessonDetail, status_code=status.HTTP_201_CREATED)
 async def create_lesson(body: LessonCreate, session: SessionDep, user: CurrentUser) -> LessonDetail:
-    topic = await get_or_404(session, Topic, body.topic_id, "Chủ đề")
-    if topic.skill not in (Skill.VOCABULARY, Skill.GRAMMAR):
-        raise HTTPException(400, "Chủ đề này không phải bài từ vựng / ngữ pháp.")
+    if body.custom is None:
+        preset = await get_or_404(session, Topic, body.topic_id, "Chủ đề")
+        if preset.skill not in (Skill.VOCABULARY, Skill.GRAMMAR):
+            raise HTTPException(400, "Chủ đề này không phải bài từ vựng / ngữ pháp.")
+        skill = Skill(preset.skill)
+    else:
+        skill = Skill(body.skill)
+    topic = await topics.topic_for_new_item(session, user.id, skill, body.topic_id, body.custom)
+    if topic is None:
+        raise HTTPException(404, "Chủ đề không tồn tại.")
     lesson = await svc.create_lesson(session, topic, body.level, user.id)
     return await svc.lesson_detail(session, lesson)
 
@@ -53,6 +60,8 @@ async def retry_lesson(lesson_id: int, session: SessionDep, user: CurrentUser) -
 async def delete_lesson(lesson_id: int, session: SessionDep, user: CurrentUser) -> Response:
     lesson = await get_owned(session, Lesson, lesson_id, user, "Bài học")
     await session.delete(lesson)
+    await session.flush()
+    await topics.delete_custom_topic_if_unused(session, lesson.topic_id)
     await session.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 

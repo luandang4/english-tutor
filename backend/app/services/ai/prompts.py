@@ -29,10 +29,24 @@ def _level(level: str) -> str:
     return f"CEFR {level} ({LEVELS[level]['ai']})"
 
 
+def _topic(topic: Topic, label: str = "Topic") -> str:
+    if not topic.is_custom:
+        return f"{label}: {topic.title} — {topic.focus or topic.description_vi}"
+    line = f"{label} (chosen by the learner): {topic.title}"
+    if topic.focus:
+        line += (
+            f"\nLearner's wishes: {topic.focus}\n"
+            "Follow these wishes for content, context and examples, but keep the required structure, counts and "
+            "level below. If the topic is not suitable for this kind of lesson, use the closest reasonable "
+            "interpretation."
+        )
+    return line
+
+
 def vocab_lesson_prompt(topic: Topic, level: str, known_words: list[str]) -> str:
     avoid = ", ".join(known_words[:150]) or "(none)"
     return f"""Create a vocabulary lesson.
-Topic: {topic.title} — {topic.focus or topic.description_vi}
+{_topic(topic)}
 Learner level: {_level(level)}
 
 Requirements:
@@ -46,7 +60,7 @@ Requirements:
 
 def grammar_lesson_prompt(topic: Topic, level: str) -> str:
     return f"""Create a grammar lesson.
-Grammar point: {topic.title} — {topic.focus or topic.description_vi}
+{_topic(topic, "Grammar point")}
 Learner level: {_level(level)}
 
 Requirements:
@@ -60,7 +74,7 @@ Requirements:
 
 def writing_task_prompt(topic: Topic, level: str) -> str:
     return f"""Create one writing assignment.
-Task type / topic: {topic.title} — {topic.focus or topic.description_vi}
+{_topic(topic, "Task type / topic")}
 Learner level: {_level(level)}
 
 Make it realistic and specific (a concrete situation/question), with a word range suitable for the level

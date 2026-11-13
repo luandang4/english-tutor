@@ -500,3 +500,8 @@ details.collapse > div { margin-top: 12px; }
 .heatmap span[data-l="4"] { background: var(--accent); box-shadow: 0 0 10px rgba(255, 122, 200, 0.6); }
 
 .audio-source { min-width: 170px; }
+
+.custom-topic { display: flex; flex-direction: column; gap: 12px; border-color: var(--border-strong); background: linear-gradient(135deg, rgba(183, 148, 255, 0.12), rgba(255, 122, 200, 0.06)), var(--panel); }
+.custom-topic-head { display: flex; gap: 12px; align-items: flex-start; }
+.custom-topic-head .icon { font-size: 1.6rem; line-height: 1; }
+.custom-topic-head h3 { font-size: 1.05rem; }

@@ -56,12 +56,14 @@ EXERCISES = [
 class FakeAI:
     def __init__(self) -> None:
         self.calls: list[str] = []
+        self.prompts: list[str] = []
         self.fail_next = False
 
     async def generate_json(self, *, models, system, prompt, schema: type[T], temperature=0.7) -> tuple[T, str]:
         from app.services.ai.client import AIUnavailableError
 
         self.calls.append(schema.__name__)
+        self.prompts.append(prompt)
         if self.fail_next:
             self.fail_next = False
             raise AIUnavailableError("fake outage")

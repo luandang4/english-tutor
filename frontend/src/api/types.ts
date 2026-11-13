@@ -32,7 +32,16 @@ export interface Topic {
   title_vi: string
   description_vi: string
   icon: string
+  is_custom: boolean
 }
+
+/** Learner-defined topic (instead of a preset one). */
+export interface CustomTopic {
+  title: string
+  request: string
+}
+
+export type TopicChoice = { topic_id: number; custom?: never } | { custom: CustomTopic; topic_id?: never }
 
 // ---------- lessons ----------
 export interface LessonSummary {
