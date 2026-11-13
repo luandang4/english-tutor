@@ -12,7 +12,9 @@ uv sync -q --no-dev --frozen
 [ -f ../data/models/kokoro-v1.0.onnx ] || uv run --no-dev python scripts/download_tts_model.py
 
 cd ../frontend
-npm ci --no-audit --no-fund --loglevel=error
+# `npm ci` rejects the macOS-generated lock on Linux (npm omits some optional wasm deps), so install
+# leniently from the lock without rewriting it.
+npm install --no-audit --no-fund --no-save --loglevel=error
 npm run -s build
 
 sudo cp /opt/english-tutor/deploy/english-tutor.service /etc/systemd/system/english-tutor.service
