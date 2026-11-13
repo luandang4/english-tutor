@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 import { useChangePassword, useLogout, useMe } from '../../api/hooks'
-import { ErrorBox, Icon, PageHeader, Spinner } from '../../components/ui'
+import { AudioSourceSelect, ErrorBox, Icon, PageHeader, Spinner, SpeakButton } from '../../components/ui'
 import './auth.css'
 
 export function AccountPage() {
@@ -32,6 +32,17 @@ export function AccountPage() {
         >
           <Icon name="arrowRight" size={16} /> Đăng xuất
         </button>
+      </div>
+
+      <div className="card stack">
+        <div className="card-title" style={{ marginBottom: 0 }}>
+          <h3>Âm thanh phát âm</h3>
+        </div>
+        <p className="small muted">Nguồn đọc từ vựng và câu ví dụ. Lưu riêng cho trình duyệt này.</p>
+        <div className="row">
+          <AudioSourceSelect />
+          <SpeakButton text="Hello, nice to meet you." label="Nghe thử" />
+        </div>
       </div>
 
       <form

@@ -62,6 +62,18 @@ Browser (React SPA)
 - **Writing scores** are recomputed server-side as the mean of the four criteria. Corrections that
   can't be located in the learner's text are dropped, so highlighting always works.
 
+## Audio cache and voice options
+
+- `data/tts/` caches every generated word / sentence audio (name = hash + source + extension). A background loop
+  (hourly, and at startup) deletes files older than `TTS_CACHE_MAX_DAYS` (30) and then the oldest files until the
+  folder is under `TTS_CACHE_MAX_MB` (1024). Deleted audio is simply regenerated on demand.
+- The learner picks the audio source per browser (lesson, review and account pages): Auto, Google
+  Translate, human recording (Wiktionary), Kokoro. `GET /api/tts?source=...` puts the choice first and keeps the
+  default chain as fallback.
+- Conversation: "Đeo tai nghe" on = mic stays open while Emma speaks (barge-in); off = the client pauses the mic
+  while she speaks. "Nghe thử" plays a short Gemini Live sample of the chosen voice
+  (`GET /api/conversations/voice-preview`), generated once per voice and cached.
+
 ## Accounts & data isolation
 
 - Email and password accounts. Passwords are hashed with **Argon2id** (`argon2-cffi`).

@@ -9,9 +9,13 @@ router = APIRouter(prefix="/tts", tags=["tts"])
 
 
 @router.get("", response_class=Response)
-async def tts(_: CurrentUser, text: str = Query(min_length=1, max_length=300)) -> Response:
+async def tts(
+    _: CurrentUser,
+    text: str = Query(min_length=1, max_length=300),
+    source: str | None = Query(None, pattern="^(auto|google|dictionary|kokoro)$"),
+) -> Response:
     try:
-        audio, media_type, source = await synthesize(text.strip())
+        audio, media_type, source = await synthesize(text.strip(), None if source == "auto" else source)
     except TTSError as e:
         raise HTTPException(503, str(e)) from e
     return Response(

@@ -33,3 +33,14 @@ export function usePreference<T>(key: string, fallback: T): [T, (v: T) => void] 
 }
 
 export const useLevel = () => usePreference<Level>('et.level', 'B1')
+
+export type AudioSource = 'auto' | 'google' | 'dictionary' | 'kokoro'
+export const AUDIO_SOURCE_KEY = 'et.audio.source'
+export const AUDIO_SOURCES: { value: AudioSource; label: string; hint: string }[] = [
+  { value: 'auto', label: 'Tự động', hint: 'Từ đơn: Google Dịch · Câu: Kokoro (khuyên dùng)' },
+  { value: 'google', label: 'Google Dịch', hint: 'Giọng Google Translate, cần có mạng' },
+  { value: 'dictionary', label: 'Người thật', hint: 'Bản ghi Wiktionary, chỉ có cho một số từ đơn' },
+  { value: 'kokoro', label: 'Kokoro (AI cục bộ)', hint: 'Chạy trên máy chủ, hợp với câu dài' },
+]
+export const useAudioSource = () => usePreference<AudioSource>(AUDIO_SOURCE_KEY, 'auto')
+export const getAudioSource = () => read<AudioSource>(AUDIO_SOURCE_KEY, 'auto')

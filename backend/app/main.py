@@ -43,7 +43,9 @@ async def lifespan(_: FastAPI):
         await seed_topics(session)
         await fail_stale_jobs(session)
     tasks.spawn(tts.warm_up(), name="tts-warmup")
+    maintenance = asyncio.create_task(tts.cache_maintenance(), name="tts-cache-maintenance")
     yield
+    maintenance.cancel()
     await tasks.wait_all(grace_seconds=10)
     await engine.dispose()
 

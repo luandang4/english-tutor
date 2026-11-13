@@ -100,3 +100,7 @@
   .persona .name { font-size: 1.25rem; }
   .mic { width: 58px; height: 58px; }
 }
+
+.voice-pick { display: flex; gap: 8px; align-items: center; }
+.voice-pick .select { flex: 1; min-width: 0; }
+.voice-error { color: var(--danger); font-weight: 500; }

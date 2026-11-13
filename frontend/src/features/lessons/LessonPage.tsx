@@ -8,6 +8,7 @@ import {
   GeneratingState,
   Icon,
   Loading,
+  AudioSourceSelect,
   PageHeader,
   ProgressBar,
   ScoreRing,
@@ -95,6 +96,10 @@ export function LessonPage({ skill }: { skill: 'vocabulary' | 'grammar' }) {
           </div>
         </div>
         <ScoreRing score={lesson.score} size={88} label="Điểm bài học" />
+      </div>
+
+      <div className="row" style={{ justifyContent: 'flex-end' }}>
+        <AudioSourceSelect />
       </div>
 
       {isVocab ? <VocabBody content={lesson.content as VocabContent} /> : <GrammarBody content={lesson.content as GrammarContent} />}

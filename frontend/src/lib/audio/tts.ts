@@ -1,5 +1,6 @@
-// Plays English audio from the backend (/api/tts — local Kokoro TTS, cached).
+// Plays English audio from the backend (/api/tts — free sources, cached on the server).
 // Falls back to the browser's built-in speech synthesis if the server can't produce audio.
+import { getAudioSource } from '../preferences'
 
 // Bump when the server-side voice choice changes, so browsers don't replay stale cached audio.
 const AUDIO_VERSION = 3
@@ -21,19 +22,32 @@ function browserSpeak(text: string): Promise<void> {
   })
 }
 
-export async function playText(text: string): Promise<void> {
+/** Play an audio URL; resolves when finished. Throws if it can't play. */
+async function playUrl(url: string): Promise<boolean> {
   current?.pause()
-  const audio = new Audio(`/api/tts?text=${encodeURIComponent(text)}&v=${AUDIO_VERSION}`)
+  const audio = new Audio(url)
   current = audio
   try {
     await new Promise<void>((resolve, reject) => {
       audio.onended = () => resolve()
-      audio.onerror = () => reject(new Error('tts unavailable'))
+      audio.onerror = () => reject(new Error('audio unavailable'))
       audio.play().catch(reject)
     })
+    return true
   } catch (e) {
-    if (current !== audio) return // superseded by a newer click
+    if (current !== audio) return true // superseded by a newer click
     if (e instanceof DOMException && e.name === 'NotAllowedError') throw e
-    await browserSpeak(text)
+    return false
   }
+}
+
+export async function playText(text: string): Promise<void> {
+  const url = `/api/tts?text=${encodeURIComponent(text)}&source=${getAudioSource()}&v=${AUDIO_VERSION}`
+  if (!(await playUrl(url))) await browserSpeak(text)
+}
+
+/** Sample of a Gemini tutor voice (no browser-speech fallback: it would not sound like that voice). */
+export async function playVoicePreview(voice: string): Promise<void> {
+  if (!(await playUrl(`/api/conversations/voice-preview?voice=${encodeURIComponent(voice)}`)))
+    throw new Error('Không phát được giọng mẫu. Thử lại sau vài giây.')
 }

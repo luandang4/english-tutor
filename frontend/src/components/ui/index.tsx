@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom'
 import { useMeta } from '../../api/hooks'
 import type { LessonStatus, Level } from '../../api/types'
 import { playText } from '../../lib/audio/tts'
+import { AUDIO_SOURCES, useAudioSource, type AudioSource } from '../../lib/preferences'
 import { STATUS_LABEL, scoreTone } from '../../lib/format'
 import { Icon } from './Icon'
 
@@ -124,7 +125,27 @@ export function LevelSelect({ value, onChange }: { value: Level; onChange: (l: L
   )
 }
 
-/** Play English audio (Gemini TTS). */
+/** Choose where word / sentence audio comes from (saved in this browser). */
+export function AudioSourceSelect() {
+  const [source, setSource] = useAudioSource()
+  const hint = AUDIO_SOURCES.find((s) => s.value === source)?.hint
+  return (
+    <label className="field audio-source" title={hint}>
+      <span className="row" style={{ gap: 6 }}>
+        <Icon name="volume" size={14} /> Nguồn âm thanh
+      </span>
+      <select className="select" value={source} onChange={(e) => setSource(e.target.value as AudioSource)}>
+        {AUDIO_SOURCES.map((s) => (
+          <option key={s.value} value={s.value}>
+            {s.label}
+          </option>
+        ))}
+      </select>
+    </label>
+  )
+}
+
+/** Play English audio (free TTS sources, see AudioSourceSelect). */
 export function SpeakButton({ text, label = 'Nghe' }: { text: string; label?: string }) {
   const [state, setState] = useState<'idle' | 'loading' | 'error'>('idle')
   return (

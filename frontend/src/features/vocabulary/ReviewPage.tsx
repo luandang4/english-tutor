@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom'
 import { useCards, useDeckStats, useDeleteCard, useReviewCard } from '../../api/hooks'
 import type { Card } from '../../api/types'
 import { PronounceButton } from '../../components/exercises/PronounceButton'
-import { EmptyState, ErrorBox, Icon, Loading, PageHeader, ProgressBar, SpeakButton } from '../../components/ui'
+import { AudioSourceSelect, EmptyState, ErrorBox, Icon, Loading, PageHeader, ProgressBar, SpeakButton } from '../../components/ui'
 import { timeAgo } from '../../lib/format'
 import { playText } from '../../lib/audio/tts'
 
@@ -23,6 +23,7 @@ export function ReviewPage() {
       <PageHeader
         title="Ôn tập từ vựng"
         subtitle="Lặp lại ngắt quãng (FSRS): từ bạn hay quên sẽ xuất hiện thường xuyên hơn, từ đã thuộc sẽ giãn dần."
+        actions={<AudioSourceSelect />}
       />
       {stats && (
         <div className="grid cols-4">

@@ -150,15 +150,22 @@ SOURCES: dict[str, Callable[[str], Awaitable[tuple[bytes, str]]]] = {
 }
 
 
-def _chain(text: str) -> list[str]:
+SOURCE_CHOICES = tuple(SOURCES)
+
+
+def _chain(text: str, preferred: str | None = None) -> list[str]:
+    """Default chain for the text, or the learner's chosen source first with the default chain as fallback."""
     s = get_settings()
     short = len(text.split()) <= SHORT_MAX_WORDS and not re.search(r"[.!?,;]", text)
-    return s.tts_word_sources if short else s.tts_sentence_sources
+    default = s.tts_word_sources if short else s.tts_sentence_sources
+    if preferred in SOURCES:
+        return [preferred, *(n for n in default if n != preferred)]
+    return default
 
 
-async def synthesize(text: str) -> tuple[bytes, str, str]:
-    """Return (audio bytes, media type, source name)."""
-    chain = _chain(text)
+async def synthesize(text: str, preferred: str | None = None) -> tuple[bytes, str, str]:
+    """Return (audio bytes, media type, source name). `preferred` = learner-chosen source (falls back on failure)."""
+    chain = _chain(text, preferred)
     key = hashlib.sha256(f"{CACHE_VERSION}|{','.join(chain)}|{text}".encode()).hexdigest()[:32]
     stale = None
     for cached in CACHE_DIR.glob(f"{key}.*"):
@@ -188,6 +195,51 @@ async def synthesize(text: str) -> tuple[bytes, str, str]:
         stale[0].touch()
         return await asyncio.to_thread(stale[0].read_bytes), stale[1], stale[2]
     raise TTSError("Không tạo được âm thanh.")
+
+
+def cleanup_cache(max_age_days: int, max_bytes: int, now: float | None = None) -> int:
+    """Delete cached audio older than `max_age_days`, then oldest files until the folder fits `max_bytes`.
+    Returns the number of files removed."""
+    if not CACHE_DIR.exists():
+        return 0
+    now = time.time() if now is None else now
+    files = []
+    for f in CACHE_DIR.iterdir():
+        try:
+            st = f.stat()
+        except OSError:
+            continue
+        if f.is_file():
+            files.append((st.st_mtime, st.st_size, f))
+    removed = 0
+    keep = []
+    for mtime, size, f in files:
+        if now - mtime > max_age_days * 86400:
+            f.unlink(missing_ok=True)
+            removed += 1
+        else:
+            keep.append((mtime, size, f))
+    total = sum(size for _, size, _ in keep)
+    for _, size, f in sorted(keep, key=lambda x: x[0]):  # oldest first
+        if total <= max_bytes:
+            break
+        f.unlink(missing_ok=True)
+        total -= size
+        removed += 1
+    return removed
+
+
+async def cache_maintenance(interval_seconds: int = 3600) -> None:
+    """Background loop: keep the audio cache within the age / size limits."""
+    while True:
+        s = get_settings()
+        try:
+            n = await asyncio.to_thread(cleanup_cache, s.tts_cache_max_days, s.tts_cache_max_mb * 1024 * 1024)
+            if n:
+                log.info("TTS cache cleanup removed %d file(s)", n)
+        except Exception:
+            log.exception("TTS cache cleanup failed")
+        await asyncio.sleep(interval_seconds)
 
 
 async def prefetch(texts: list[str]) -> None:

@@ -498,3 +498,5 @@ details.collapse > div { margin-top: 12px; }
 .heatmap span[data-l="2"] { background: rgba(183, 148, 255, 0.6); }
 .heatmap span[data-l="3"] { background: var(--primary); box-shadow: 0 0 8px rgba(183, 148, 255, 0.6); }
 .heatmap span[data-l="4"] { background: var(--accent); box-shadow: 0 0 10px rgba(255, 122, 200, 0.6); }
+
+.audio-source { min-width: 170px; }
