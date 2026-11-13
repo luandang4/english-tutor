@@ -98,7 +98,7 @@ export function PronunciationView({ result }: { result: PronunciationResult }) {
           </div>
         ))}
       </div>
-      {result.recognized_text && (
+      {result.engine === 'azure' && result.recognized_text && (
         <span className="small">
           Azure nghe được: <i>“{result.recognized_text}”</i>
         </span>
@@ -106,7 +106,12 @@ export function PronunciationView({ result }: { result: PronunciationResult }) {
       {result.completeness < 50 && (
         <span className="small tone-low">Có vẻ bạn chưa đọc đúng nội dung “{result.reference_text}”. Hãy thử lại.</span>
       )}
-      <span className="small muted">Âm vị màu đỏ/vàng là chỗ cần luyện thêm. Chấm bởi Azure Speech.</span>
+      <span className="small muted">
+        Âm vị màu đỏ/vàng là chỗ cần luyện thêm.{' '}
+        {result.engine === 'local'
+          ? 'Chấm ước lượng bằng model âm vị chạy trên máy chủ (miễn phí, kém chính xác hơn Azure).'
+          : 'Chấm bởi Azure Speech.'}
+      </span>
     </div>
   )
 }

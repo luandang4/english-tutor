@@ -51,6 +51,7 @@ from app.services.conversation.live import INPUT_RATE, OPENING_PROMPT, VOICE, Li
 from app.services.conversation.pronunciation import PronunciationCoach, TurnPronunciation
 from app.services.conversation.tools import parse_tool_call
 from app.services.conversation.transcript import Transcript
+from app.services.speech import assessment
 
 __all__ = ["Transcript", "router"]
 
@@ -287,7 +288,7 @@ def _pronunciation_coach(
     async def send_note(note: str) -> None:
         await inbox.put(("note", note))
 
-    return PronunciationCoach(s.live_pronunciation and s.azure_enabled and allowed, on_result, send_note, allow)
+    return PronunciationCoach(s.live_pronunciation and assessment.available() and allowed, on_result, send_note, allow)
 
 
 async def _forward(inbox: asyncio.Queue, session: Any, coach: PronunciationCoach) -> None:
