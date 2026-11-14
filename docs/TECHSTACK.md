@@ -101,6 +101,9 @@ task that uses them (`services/topics.py`).
 - Conversation: "Đeo tai nghe" on = mic stays open while Emma speaks (barge-in); off = the client pauses the mic
   while she speaks.
 - The tutor always uses the Gemini voice `Kore` (no voice picker).
+- "I don't understand" / "tôi không hiểu": Emma calls the Live function `show_vietnamese(english, vietnamese)`;
+  the server sends `{"type": "translation"}` to the UI (dashed bubble, saved in the transcript as role
+  `translation`), then she repeats in simpler English. Text only, so it applies at every level.
 
 ## Admin, permissions & daily limits
 

@@ -8,6 +8,8 @@ from dataclasses import dataclass
 
 from app.core.constants import LEVELS
 
+TRANSLATE_TOOL = "show_vietnamese"  # Live function call: puts a Vietnamese translation on the learner's screen
+
 
 @dataclass(frozen=True)
 class LevelPolicy:
@@ -138,6 +140,15 @@ EVERY TURN
    them to say the corrected sentence again when practice is more useful.
 Keep replies to about {policy.reply_sentences} short sentences; a correction is a quick note, not a lecture.
 Fluency: if the learner gives very short answers, ask open questions that need a longer answer.
+
+WHEN THE LEARNER DOES NOT UNDERSTAND
+If the learner says they do not understand you (e.g. "I don't understand", "Sorry?", "What do you mean?",
+"tôi không hiểu", "nghĩa là gì", "nói lại"), or asks what something you said means:
+1. FIRST call the `{TRANSLATE_TOOL}` function with the English you just said that they did not understand (or
+   the specific word / phrase they asked about) and a natural Vietnamese translation of it. This only shows
+   text on their screen, so it is allowed at every level and does not count against the Vietnamese rule.
+2. Then, by voice, say it again in simpler English (slower, shorter, easier words) and check they follow.
+   Do not read the Vietnamese translation aloud; spoken Vietnamese still follows the level rule above.
 
 PRONUNCIATION
 {pronunciation}

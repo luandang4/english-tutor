@@ -17,6 +17,7 @@ export interface LiveCallbacks {
   onTranscript?: (role: 'user' | 'tutor', text: string) => void
   onTurnEnd?: () => void
   onPronunciation?: (result: TurnPronunciation) => void
+  onTranslation?: (english: string, vietnamese: string) => void
   onInterrupted?: () => void
   onError?: (message: string) => void
   onClosed?: () => void
@@ -129,6 +130,9 @@ export class LiveSession {
         break
       case 'pronunciation':
         this.cb.onPronunciation?.(msg as TurnPronunciation)
+        break
+      case 'translation':
+        this.cb.onTranslation?.(msg.english, msg.vietnamese)
         break
       case 'turn_complete':
         this.cb.onTurnEnd?.()

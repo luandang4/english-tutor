@@ -9,6 +9,8 @@ Browser <-> /ws/conversation protocol
   server -> client
     text   {"type": "pronunciation", "text", "score", "accuracy", "fluency", "prosody", "weak_words": [...]}
            (Azure result for the learner's previous spoken turn; arrives shortly after the turn)
+    text   {"type": "translation", "english": "...", "vietnamese": "..."}
+           (Emma shows a Vietnamese translation when the learner did not understand her)
     text   {"type": "ready", "session_id": int} | {"type": "transcript", "role": "user"|"tutor", "text": "..."}
            {"type": "interrupted"} | {"type": "turn_complete"} | {"type": "error", "message": "..."}
     binary PCM16 mono 24 kHz tutor audio
@@ -34,7 +36,14 @@ from app.models.conversation import ConversationSession
 from app.models.user import User
 from app.services import access, auth
 from app.services.ai.client import get_genai_client
-from app.services.conversation.live import INPUT_RATE, OPENING_PROMPT, VOICE, LiveSettings, live_config
+from app.services.conversation.live import (
+    INPUT_RATE,
+    OPENING_PROMPT,
+    VOICE,
+    LiveSettings,
+    live_config,
+    parse_translation,
+)
 from app.services.conversation.pronunciation import PronunciationCoach, TurnPronunciation
 
 log = logging.getLogger(__name__)
@@ -54,6 +63,10 @@ class Transcript:
         else:
             self.turns.append({"role": role, "text": text})
 
+    def add_translation(self, english: str, vietnamese: str) -> None:
+        self.close_turn()
+        self.turns.append({"role": "translation", "text": vietnamese, "source": english, "closed": True})
+
     def close_turn(self) -> None:
         if self.turns:
             self.turns[-1]["closed"] = True
@@ -72,6 +85,8 @@ class Transcript:
                 turn = {"role": t["role"], "text": text}
                 if "pronunciation" in t:
                     turn["pronunciation"] = t["pronunciation"]
+                if t.get("source"):
+                    turn["source"] = t["source"]
                 out.append(turn)
         return out
 
@@ -319,12 +334,28 @@ async def _relay(ws: WebSocket, session: Any, resume: dict, transcript: Transcri
                     transcript.close_turn()
                     await ws.send_json({"type": "turn_complete"})
                     await coach.tutor_done(transcript.last_user_index())
+            if m.tool_call:
+                await _answer_tool_calls(ws, session, transcript, m.tool_call)
             upd = m.session_resumption_update
             if upd and upd.resumable and upd.new_handle:
                 resume["handle"] = upd.new_handle
             if m.go_away:
                 log.info("GoAway received (time left %s)", m.go_away.time_left)
                 return "go_away"
+
+
+async def _answer_tool_calls(ws: WebSocket, session: Any, transcript: Transcript, tool_call: Any) -> None:
+    """Show Emma's Vietnamese translations in the UI, then let the model continue speaking."""
+    responses = []
+    for call in tool_call.function_calls or []:
+        if t := parse_translation(call):
+            transcript.add_translation(t.english, t.vietnamese)
+            await ws.send_json({"type": "translation", "english": t.english, "vietnamese": t.vietnamese})
+        responses.append(
+            types.FunctionResponse(id=call.id, name=call.name, response={"result": "shown" if t else "unknown tool"})
+        )
+    if responses:
+        await session.send_tool_response(function_responses=responses)
 
 
 async def _safe_send(ws: WebSocket, payload: dict) -> None:

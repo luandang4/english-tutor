@@ -141,3 +141,34 @@ async def test_coach_disabled_does_nothing(monkeypatch) -> None:
     await coach.tutor_done(0)
     await asyncio.sleep(0)
     assert not called
+
+
+def test_tutor_shows_vietnamese_when_learner_does_not_understand() -> None:
+    from google.genai import types
+
+    from app.api.routes.live import Transcript
+    from app.services.conversation.live import parse_translation
+    from app.services.conversation.tutor import TRANSLATE_TOOL
+
+    for level in LEVELS:
+        assert TRANSLATE_TOOL in system_prompt(level, "x", False)
+    config = live_config(LiveSettings())
+    assert config.tools[0].function_declarations[0].name == TRANSLATE_TOOL
+
+    call = types.FunctionCall(
+        id="1",
+        name=TRANSLATE_TOOL,
+        args={"english": "How was your weekend?", "vietnamese": "Cuối tuần của bạn thế nào?"},
+    )
+    t = parse_translation(call)
+    assert t and t.vietnamese == "Cuối tuần của bạn thế nào?"
+    assert parse_translation(types.FunctionCall(name="other", args={"vietnamese": "x"})) is None
+    assert parse_translation(types.FunctionCall(name=TRANSLATE_TOOL, args={"vietnamese": " "})) is None
+
+    transcript = Transcript()
+    transcript.add("tutor", "How was your weekend?")
+    transcript.add("user", "Tôi không hiểu")
+    transcript.add_translation(t.english, t.vietnamese)
+    transcript.add("tutor", "What did you do on Saturday?")
+    assert [x["role"] for x in transcript.export()] == ["tutor", "user", "translation", "tutor"]
+    assert transcript.export()[2]["source"] == "How was your weekend?"

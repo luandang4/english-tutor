@@ -8,6 +8,7 @@ import { Icon } from '../../components/ui'
 import { LiveSession } from '../../lib/audio/live-session'
 import { useLevel, usePreference } from '../../lib/preferences'
 import { Orb, type OrbMode } from '../../orb/orb'
+import { TranslationBubble } from './TranslationBubble'
 import { TurnPronunciationView } from './TurnPronunciationView'
 import './conversation.css'
 
@@ -31,8 +32,9 @@ const STATUS_TEXT: Record<OrbMode, string> = {
 
 interface Message {
   id: number
-  role: 'user' | 'tutor' | 'error'
+  role: 'user' | 'tutor' | 'translation' | 'error'
   text: string
+  source?: string // translation: the English it translates
   pronunciation?: TurnPronunciation
 }
 
@@ -111,9 +113,9 @@ export function ConversationPage() {
     return () => cancelAnimationFrame(raf)
   }, [running])
 
-  const push = (role: Message['role'], text: string) => {
+  const push = (role: Message['role'], text: string, source?: string) => {
     bubbleOpen.current = false
-    setMessages((ms) => [...ms, { id: nextId.current++, role, text }])
+    setMessages((ms) => [...ms, { id: nextId.current++, role, text, source }])
   }
 
   const appendTranscript = (role: 'user' | 'tutor', fragment: string) => {
@@ -150,6 +152,7 @@ export function ConversationPage() {
       onTranscript: appendTranscript,
       onTurnEnd: () => (bubbleOpen.current = false),
       onPronunciation: attachPronunciation,
+      onTranslation: (english, vietnamese) => push('translation', vietnamese, english),
       onInterrupted: () => (bubbleOpen.current = false),
       onError: (m) => push('error', m),
       onClosed: () => {
@@ -294,13 +297,17 @@ export function ConversationPage() {
             {messages.length === 0 && (
               <div className="empty">Chọn trình độ và tình huống, rồi bấm nút micro. Emma sẽ chào bạn trước.</div>
             )}
-            {messages.map((m) => (
+            {messages.map((m) =>
+              m.role === 'translation' ? (
+                <TranslationBubble key={m.id} vietnamese={m.text} english={m.source} />
+              ) : (
               <div key={m.id} className={`msg ${m.role}`}>
                 {m.role !== 'error' && <span className="who">{m.role === 'tutor' ? 'Emma' : 'Bạn'}</span>}
                 {m.text}
                 {m.pronunciation && <TurnPronunciationView result={m.pronunciation} />}
               </div>
-            ))}
+              ),
+            )}
           </div>
         )}
       </aside>

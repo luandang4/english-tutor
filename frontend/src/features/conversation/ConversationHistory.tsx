@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useConversation, useConversations, useDeleteConversation, useMeta } from '../../api/hooks'
 import { EmptyState, ErrorBox, Icon, Loading, PageHeader } from '../../components/ui'
 import { formatDuration, timeAgo } from '../../lib/format'
+import { TranslationBubble } from './TranslationBubble'
 import { TurnPronunciationView } from './TurnPronunciationView'
 import './conversation.css'
 
@@ -91,13 +92,17 @@ export function ConversationDetailPage() {
         }
       />
       <div className="card chat" style={{ maxWidth: 760 }}>
-        {data.transcript.map((t, i) => (
+        {data.transcript.map((t, i) =>
+          t.role === 'translation' ? (
+            <TranslationBubble key={i} vietnamese={t.text} english={t.source} />
+          ) : (
           <div key={i} className={`msg ${t.role}`}>
             <span className="who">{t.role === 'tutor' ? 'Emma' : 'Bạn'}</span>
             {t.text}
             {t.pronunciation && <TurnPronunciationView result={t.pronunciation} />}
           </div>
-        ))}
+          ),
+        )}
       </div>
     </div>
   )

@@ -297,8 +297,9 @@ export interface TurnPronunciation {
 }
 
 export interface ConversationTurn {
-  role: 'user' | 'tutor'
+  role: 'user' | 'tutor' | 'translation' // translation: Vietnamese Emma shows when the learner didn't understand
   text: string
+  source?: string // translation only: the English it translates
   pronunciation?: TurnPronunciation
 }
 

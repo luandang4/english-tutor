@@ -103,3 +103,6 @@
 .setup .toggle { grid-column: 1 / -1; }
 .custom-scenario { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1.4fr; gap: 10px; }
 @media (max-width: 700px) { .custom-scenario { grid-template-columns: 1fr; } }
+.msg.translation { align-self: flex-start; background: transparent; border-style: dashed; border-color: var(--accent); border-bottom-left-radius: 4px; }
+.msg.translation .who { color: var(--accent); }
+.msg.translation .source { display: block; color: var(--muted); font-style: italic; font-size: 0.85rem; margin-bottom: 4px; }
