@@ -245,7 +245,7 @@ export function ConversationPage(props: ConversationPageProps = {}) {
   const lineAges = ages(lines)
 
   return (
-    <div className={`convo view-${view} layout-${prefs.layout} font-${prefs.fontSize}`} data-mode={mode}>
+    <div className={`convo view-${view} font-${prefs.fontSize}`} data-mode={mode}>
       <div className="orb-wrap" aria-hidden="true">
         <canvas ref={canvasRef} />
       </div>
@@ -279,8 +279,6 @@ export function ConversationPage(props: ConversationPageProps = {}) {
           <SessionBar
             mode={mode}
             endsAt={endsAt}
-            layout={prefs.layout}
-            onLayout={prefs.setLayout}
             fontSize={prefs.fontSize}
             onFontSize={prefs.setFontSize}
             onPhrases={preset ? () => setShowPhrases((s) => !s) : undefined}

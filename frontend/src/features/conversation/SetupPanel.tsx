@@ -1,7 +1,7 @@
 import type { Level, Meta, ScenarioOption } from '../../api/types'
 import { ScenarioBrief } from './ScenarioBrief'
 import { Segmented } from './Segmented'
-import { CUSTOM, ENHANCEMENT_OPTIONS, LAYOUT_OPTIONS, type ConvoPreferences } from './preferences'
+import { CUSTOM, ENHANCEMENT_OPTIONS, type ConvoPreferences } from './preferences'
 
 /** Preset scenarios grouped by `group`, keeping the server's order. */
 function groupScenarios(scenarios: ScenarioOption[]): [string, ScenarioOption[]][] {
@@ -10,7 +10,7 @@ function groupScenarios(scenarios: ScenarioOption[]): [string, ScenarioOption[]]
   return [...groups]
 }
 
-/** Settings chosen before a session: level, scenario (with its goal and phrases), upgrade frequency, layout. */
+/** Settings chosen before a session: level, scenario (with its goal and phrases), upgrade frequency. */
 export function SetupPanel(props: {
   meta: Meta | undefined
   level: Level
@@ -82,7 +82,6 @@ export function SetupPanel(props: {
         options={ENHANCEMENT_OPTIONS}
         onChange={prefs.setEnhancement}
       />
-      <Segmented label="Bố cục khi học" value={prefs.layout} options={LAYOUT_OPTIONS} onChange={prefs.setLayout} />
 
       <label className="toggle">
         <input type="checkbox" checked={prefs.headphones} onChange={(e) => prefs.setHeadphones(e.target.checked)} />

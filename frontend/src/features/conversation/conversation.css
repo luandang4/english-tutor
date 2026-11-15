@@ -2,7 +2,7 @@
    Conversation page. Three views on one element:
    .view-setup  orb + settings form (scrolls), mic at the bottom
    .view-live / .view-ended  slim top bar, one centred transcript column, quick help + mic + text box
-   Running layouts (learner preference): .layout-overlay (text over a dimmed orb) / .layout-corner (small orb)
+   Running session: the orb is a dimmed backdrop behind the text
    ========================================================================== */
 .convo {
   --talk-size: 1.04rem;
@@ -81,7 +81,6 @@
   padding: 8px max(var(--gutter), env(safe-area-inset-right)) 8px max(var(--gutter), env(safe-area-inset-left));
   border-bottom: 1px solid var(--border); background: var(--panel); backdrop-filter: blur(18px);
 }
-.bar-orb-slot { display: none; width: 44px; height: 44px; flex: none; }
 .bar-who { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
 .bar-who b { font-size: 1.05rem; }
 .bar-tools { margin-left: auto; display: flex; align-items: center; gap: 4px; }
@@ -94,17 +93,11 @@
 .countdown.warn { color: var(--ok); background: var(--ok-bg); }
 .countdown-label { font-weight: 500; color: var(--muted); }
 
-/* overlay layout: the orb is a soft, dimmed backdrop behind the text, still moving with the voices */
-.layout-overlay:is(.view-live, .view-ended) .orb-wrap {
+/* running session: the orb is a soft, dimmed backdrop behind the text, still moving with the voices */
+.convo:is(.view-live, .view-ended) .orb-wrap {
   position: absolute; z-index: 0; left: 50%; top: 46%; width: min(92vw, 62vh, 560px);
   transform: translate(-50%, -50%); opacity: 0.38; filter: blur(3px) saturate(1.15);
 }
-/* corner layout: a small orb avatar in the top bar */
-.layout-corner:is(.view-live, .view-ended) .orb-wrap {
-  position: absolute; z-index: 3; width: 44px; top: calc(env(safe-area-inset-top) + 6px);
-  left: max(var(--gutter), env(safe-area-inset-left));
-}
-.layout-corner .bar-orb-slot { display: block; }
 .view-ended .orb-wrap { opacity: 0.2; }
 
 .talk-wrap { position: relative; z-index: 1; min-height: 0; }
@@ -262,7 +255,7 @@ s.fb-original { text-decoration-color: var(--danger); text-decoration-thickness:
 
 /* ---------- light mode: the orb is pastel on a pale background, so it needs less dimming ---------- */
 @media (prefers-color-scheme: light) {
-  .layout-overlay:is(.view-live, .view-ended) .orb-wrap { opacity: 0.3; }
+  .convo:is(.view-live, .view-ended) .orb-wrap { opacity: 0.3; }
 }
 
 /* ---------- small screens ---------- */
@@ -277,7 +270,6 @@ s.fb-original { text-decoration-color: var(--danger); text-decoration-thickness:
   .convo-bar { gap: 6px; }
   .bar-who { gap: 6px; min-width: 0; overflow: hidden; }
   .bar-btn { padding: 6px 7px; }
-  .layout-corner .status-text { display: none; } /* the orb avatar already shows who is talking */
   .quick-help { gap: 6px; }
   .quick-help button { flex-direction: column; gap: 0; padding: 6px 2px; font-size: 0.72rem; }
   .quick-help button span:first-child { font-size: 1.05rem; }
