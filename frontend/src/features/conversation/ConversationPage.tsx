@@ -10,6 +10,7 @@ import { useLevel } from '../../lib/preferences'
 import { useWakeLock } from '../../lib/wakeLock'
 import { Orb, type OrbMode } from '../../orb/orb'
 import { EndCard, type EndReason } from './EndCard'
+import { useDeckActions } from './useDeckActions'
 import { ages, useLiveTranscript, type Line } from './liveTranscript'
 import { CUSTOM, useConvoPreferences } from './preferences'
 import { QuickHelp } from './QuickHelp'
@@ -47,7 +48,9 @@ function LineView(props: { line: Line; age: number; done: boolean } & TurnAction
   )
 }
 
-export function ConversationPage({ onEnded, onSaveFeedback, onAddWord }: ConversationPageProps = {}) {
+export function ConversationPage(props: ConversationPageProps = {}) {
+  const deck = useDeckActions()
+  const { onEnded, onSaveFeedback = deck.onSaveFeedback, onAddWord = deck.onAddWord } = props
   const { data: meta } = useMeta()
   const qc = useQueryClient()
   const [level, setLevel] = useLevel()

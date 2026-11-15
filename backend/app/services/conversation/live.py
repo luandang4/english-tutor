@@ -67,11 +67,11 @@ def end_of_speech_ms(level: str) -> int:
 
 
 def live_config(
-    s: LiveSettings, resume_handle: str | None = None, pronunciation_data: bool = False
+    s: LiveSettings, resume_handle: str | None = None, pronunciation_data: bool = False, learner_context: str = ""
 ) -> types.LiveConnectConfig:
     return types.LiveConnectConfig(
         response_modalities=[types.Modality.AUDIO],
-        system_instruction=system_prompt(s.level, s.lesson(), pronunciation_data, s.enhancement),
+        system_instruction=system_prompt(s.level, s.lesson(), pronunciation_data, s.enhancement, learner_context),
         speech_config=types.SpeechConfig(
             voice_config=types.VoiceConfig(prebuilt_voice_config=types.PrebuiltVoiceConfig(voice_name=VOICE))
         ),

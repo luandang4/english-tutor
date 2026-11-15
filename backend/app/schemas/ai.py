@@ -143,3 +143,27 @@ class TextTranslation(BaseModel):
     vietnamese: str = Field(description="Natural Vietnamese translation (word mode: the meaning in this context)")
     ipa: str = Field(description="Word mode: US IPA with slashes. Sentence mode: empty string")
     part_of_speech: str = Field(description="Word mode: noun / verb / adjective / ... Sentence mode: empty string")
+
+
+class SummaryMistake(BaseModel):
+    category: str = Field(description="Short Vietnamese error category, e.g. 'Thì quá khứ', 'Mạo từ', 'Số nhiều'")
+    wrong: str = Field(description="The learner's wrong words, quoted from the transcript")
+    right: str = Field(description="Corrected version")
+    explain_vi: str = Field(description="One short Vietnamese reason")
+
+
+class SummaryWord(BaseModel):
+    word: str = Field(description="English word or short phrase taught or needed in this session")
+    meaning_vi: str
+    part_of_speech: str
+    example_en: str = Field(description="Short example sentence using it, ideally from the session")
+
+
+class ConversationRecap(BaseModel):
+    mistakes: list[SummaryMistake] = Field(description="Max 5 most important real errors, grouped by type")
+    new_words: list[SummaryWord] = Field(description="Max 8 useful words / phrases from this session")
+    strengths_vi: list[str] = Field(description="1-2 specific things the learner did well, in Vietnamese")
+    goals_vi: list[str] = Field(description="1-2 concrete goals for the next session, in Vietnamese")
+    goal_comment_vi: str = Field(
+        description="If a lesson goal is given: did they reach it? One Vietnamese sentence. Else empty"
+    )

@@ -435,6 +435,11 @@ export interface CardCreate {
   word: string
   context?: string
   meaning_vi?: string
+  ipa?: string
+  part_of_speech?: string
+  definition_en?: string
+  example_en?: string
+  source?: 'manual' | 'conversation'
 }
 
 // ---------- writing ----------
@@ -571,6 +576,29 @@ export interface TranslateResult {
 
 export interface ConversationDetail extends ConversationSummary {
   transcript: ConversationTurn[]
+  summary: ConversationRecap | null
+}
+
+/** End-of-session recap (services/conversation/recap.py), generated once and stored with the session. */
+export interface ConversationRecap {
+  learner_turns: number
+  learner_words: number
+  pronunciation_avg: number | null
+  weak_words: { word: string; score: number }[]
+  corrections: { original: string; better: string; explain_vi: string }[]
+  upgrades: { original: string; better: string; explain_vi: string }[]
+  mistakes: { category: string; wrong: string; right: string; explain_vi: string }[]
+  new_words: { word: string; meaning_vi: string; part_of_speech: string; example_en: string }[]
+  strengths_vi: string[]
+  goals_vi: string[]
+  goal_vi: string
+  goal_comment_vi: string
+}
+
+/** What Emma remembers between sessions (learning data only). */
+export interface LearnerMemory {
+  mistakes: { category: string; wrong: string; right: string; count: number; last_seen?: string }[]
+  goals: string[]
 }
 
 // ---------- progress ----------

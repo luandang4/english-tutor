@@ -95,7 +95,7 @@ async def add_card(body: CardCreate, session: SessionDep, user: CurrentUser) -> 
     """Add a word by hand. Only `word` is needed: Gemini fills the rest (one Từ vựng request)."""
     try:
         card, created = await word_info.add_user_word(
-            session, user, body.model_dump(exclude={"context"}), context=body.context
+            session, user, body.model_dump(exclude={"context", "source"}), context=body.context, source=body.source
         )
     except AIUnavailableError as e:
         raise HTTPException(503, str(e)) from e

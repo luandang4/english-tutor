@@ -485,6 +485,7 @@ class CardCreate(BaseModel):
     """Add a word to the deck. Only `word` is required: missing meaning / IPA / example are filled by Gemini."""
 
     word: str = Field(min_length=1, max_length=120)
+    source: Literal["manual", "conversation"] = "manual"
     context: str = Field(default="", max_length=500, description="Sentence where the learner met the word")
     ipa: str = Field(default="", max_length=120)
     part_of_speech: str = Field(default="", max_length=40)
@@ -581,6 +582,47 @@ class ConversationSummary(ORM):
 
 class ConversationDetail(ConversationSummary):
     transcript: list[dict[str, Any]]
+    summary: dict[str, Any] | None = None
+
+
+class RecapCard(BaseModel):
+    original: str
+    better: str
+    explain_vi: str = ""
+
+
+class RecapMistake(BaseModel):
+    category: str
+    wrong: str
+    right: str
+    explain_vi: str = ""
+
+
+class RecapWord(BaseModel):
+    word: str
+    meaning_vi: str
+    part_of_speech: str = ""
+    example_en: str = ""
+
+
+class ConversationRecapOut(BaseModel):
+    learner_turns: int
+    learner_words: int
+    pronunciation_avg: int | None = None
+    weak_words: list[dict[str, Any]] = []
+    corrections: list[RecapCard] = []
+    upgrades: list[RecapCard] = []
+    mistakes: list[RecapMistake] = []
+    new_words: list[RecapWord] = []
+    strengths_vi: list[str] = []
+    goals_vi: list[str] = []
+    goal_vi: str = ""
+    goal_comment_vi: str = ""
+
+
+class LearnerMemoryOut(BaseModel):
+    mistakes: list[dict[str, Any]] = []
+    goals: list[str] = []
 
 
 class TranslateIn(BaseModel):

@@ -5,6 +5,7 @@ import { useChangePassword, useLogout, useMe } from '../../api/hooks'
 import { AudioSourceSelect, ErrorBox, Icon, PageHeader, PasswordInput, Spinner, SpeakButton } from '../../components/ui'
 import { passwordStrongEnough } from '../../lib/password'
 import { MyPlan } from './MyPlan'
+import { EmmaMemoryCard } from '../conversation/EmmaMemoryCard'
 import { SrsSettingsCard } from '../review/SrsSettingsCard'
 import './auth.css'
 
@@ -57,6 +58,8 @@ export function AccountPage() {
       </div>
 
       <SrsSettingsCard />
+
+      {me.view_features.includes('conversation') && <EmmaMemoryCard />}
 
       <form
         className="card stack"

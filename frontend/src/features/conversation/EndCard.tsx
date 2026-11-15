@@ -1,5 +1,7 @@
 import { Link } from 'react-router-dom'
 
+import { RecapPanel } from './RecapPanel'
+
 export type EndReason = 'stopped' | 'time_limit' | 'error'
 
 const TITLE: Record<EndReason, string> = {
@@ -35,6 +37,7 @@ export function EndCard(props: { reason: EndReason; sessionId: number | null; sa
           </Link>
         )}
       </div>
+      {saved && sessionId != null && reason !== 'error' && <RecapPanel sessionId={sessionId} />}
     </div>
   )
 }

@@ -5,7 +5,9 @@ import { useConversation, useConversations, useDeleteConversation, useMeta } fro
 import type { ConversationSummary } from '../../api/types'
 import { EmptyState, ErrorBox, Icon, Loading, PageHeader } from '../../components/ui'
 import { formatDuration, timeAgo } from '../../lib/format'
+import { RecapPanel, RecapView } from './RecapPanel'
 import { TurnView } from './TurnView'
+import { useDeckActions } from './useDeckActions'
 import './conversation.css'
 
 const ALL = '' // filter value: every scenario
@@ -96,6 +98,8 @@ export function ConversationDetailPage() {
   const del = useDeleteConversation()
   const navigate = useNavigate()
   const label = useScenarioLabel()
+  const deck = useDeckActions()
+  const [wantRecap, setWantRecap] = useState(false)
   const back = { to: '/conversation/history', label: 'Lịch sử hội thoại' }
 
   if (isPending) return <div className="page"><Loading /></div>
@@ -121,9 +125,20 @@ export function ConversationDetailPage() {
           </button>
         }
       />
+      {data.summary ? (
+        <RecapView recap={data.summary} />
+      ) : wantRecap ? (
+        <RecapPanel sessionId={id} />
+      ) : (
+        <div>
+          <button className="btn sm primary" onClick={() => setWantRecap(true)}>
+            <Icon name="sparkle" size={16} /> Xem tổng kết buổi học
+          </button>
+        </div>
+      )}
       <div className="card chat history-chat">
         {data.transcript.map((t, i) => (
-          <TurnView key={i} turn={t} />
+          <TurnView key={i} turn={t} onSaveFeedback={deck.onSaveFeedback} onAddWord={deck.onAddWord} />
         ))}
       </div>
     </div>

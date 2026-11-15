@@ -6,8 +6,16 @@ from sqlalchemy import select
 from app.api.deps import CurrentUser, SessionDep, get_owned, require_feature
 from app.core.constants import Feature
 from app.models.conversation import ConversationSession
-from app.schemas.api import ConversationDetail, ConversationSummary, TranslateIn, TranslateOut
+from app.schemas.api import (
+    ConversationDetail,
+    ConversationRecapOut,
+    ConversationSummary,
+    LearnerMemoryOut,
+    TranslateIn,
+    TranslateOut,
+)
 from app.services.ai.client import AIUnavailableError
+from app.services.conversation import memory, recap
 from app.services.conversation import translate as translation
 
 router = APIRouter(prefix="/conversations", tags=["conversation"], dependencies=[require_feature(Feature.CONVERSATION)])
@@ -35,6 +43,36 @@ async def translate(body: TranslateIn, user: CurrentUser) -> TranslateOut:
     except AIUnavailableError as e:
         raise HTTPException(503, str(e)) from e
     return TranslateOut(**result.model_dump())
+
+
+@router.get("/memory", response_model=LearnerMemoryOut)
+async def get_memory(session: SessionDep, user: CurrentUser) -> LearnerMemoryOut:
+    """What Emma remembers about the learner's mistakes and goals (shown on the account page)."""
+    row = await memory.get(session, user.id)
+    return LearnerMemoryOut(mistakes=row.mistakes, goals=row.goals) if row else LearnerMemoryOut()
+
+
+@router.delete("/memory", status_code=status.HTTP_204_NO_CONTENT)
+async def clear_memory(session: SessionDep, user: CurrentUser) -> Response:
+    await memory.clear(session, user.id)
+    await session.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post("/{conversation_id}/recap", response_model=ConversationRecapOut)
+async def session_recap(conversation_id: int, session: SessionDep, user: CurrentUser) -> ConversationRecapOut:
+    """End-of-session recap, generated once (one Gemini call) and then stored with the session."""
+    row = await get_owned(session, ConversationSession, conversation_id, user, "Buổi hội thoại")
+    if row.summary is None:
+        if row.ended_at is None or not any(t.get("role") == "user" for t in row.transcript or []):
+            raise HTTPException(409, "Buổi học chưa kết thúc hoặc bạn chưa nói câu nào.")
+        try:
+            row.summary = await recap.generate(row)
+        except AIUnavailableError as e:
+            raise HTTPException(503, str(e)) from e
+        await memory.remember(session, user.id, row.summary)
+        await session.commit()
+    return ConversationRecapOut.model_validate(row.summary)
 
 
 @router.get("/{conversation_id}", response_model=ConversationDetail)

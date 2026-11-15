@@ -164,7 +164,13 @@ level, never a sentence they could not say yet. At this level upgrade: {policy.e
 - Longer or rarer words are not automatically better; keep the learner's meaning."""
 
 
-def system_prompt(level: str, scenario: str, pronunciation_data: bool, enhancement: str = DEFAULT_ENHANCEMENT) -> str:
+def system_prompt(
+    level: str,
+    scenario: str,
+    pronunciation_data: bool,
+    enhancement: str = DEFAULT_ENHANCEMENT,
+    learner_context: str = "",
+) -> str:
     """System instruction for one Live session. `scenario` is the AI-facing scenario description."""
     policy = LEVEL_POLICY[level]
     pronunciation = PRONUNCIATION_WITH_DATA if pronunciation_data else PRONUNCIATION_WITHOUT_DATA
@@ -183,7 +189,7 @@ LEVEL (locked for the whole session): CEFR {level} — {LEVELS[level]["ai"]}.
 - Corrections: {policy.correction}.
 
 LESSON: {scenario}
-
+{f"{chr(10)}{learner_context}{chr(10)}" if learner_context else ""}
 EVERY TURN
 1. Wait until the learner has finished speaking; never cut them off.
 2. If the turn has a real error (grammar, vocabulary, sentence structure, or a meaning that is hard to

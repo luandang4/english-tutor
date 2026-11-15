@@ -1,7 +1,7 @@
 """ORM models. Import everything here so Alembic autogenerate sees all tables."""
 
 from app.models.access import AppSetting, UsageEvent
-from app.models.conversation import ConversationSession
+from app.models.conversation import ConversationSession, LearnerMemory
 from app.models.lesson import ExerciseAttempt, Lesson, LessonRecheck
 from app.models.plan import Plan, Subscription, UsageGrant
 from app.models.pronunciation import PronunciationAttempt
@@ -16,6 +16,7 @@ __all__ = [
     "AuthSession",
     "User",
     "ConversationSession",
+    "LearnerMemory",
     "ExerciseAttempt",
     "Lesson",
     "LessonRecheck",

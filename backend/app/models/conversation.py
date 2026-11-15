@@ -23,3 +23,16 @@ class ConversationSession(TimestampMixin, Base):
     duration_seconds: Mapped[int] = mapped_column(Integer, default=0)
     turns: Mapped[int] = mapped_column(Integer, default=0)
     transcript: Mapped[list[dict[str, Any]]] = mapped_column(JSON, default=list)
+    summary: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)  # end-of-session recap
+
+
+class LearnerMemory(Base):
+    """What Emma remembers between sessions (learning data only, no personal details):
+    recurring mistakes [{category, wrong, right, count, last_seen}] and goals for the next session."""
+
+    __tablename__ = "learner_memories"
+
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    mistakes: Mapped[list[dict[str, Any]]] = mapped_column(JSON, default=list)
+    goals: Mapped[list[str]] = mapped_column(JSON, default=list)
+    updated_at: Mapped[datetime] = mapped_column(UTCDateTime())

@@ -45,6 +45,7 @@ from app.models.conversation import ConversationSession
 from app.models.user import User
 from app.services import access, auth
 from app.services.ai.client import get_genai_client
+from app.services.conversation import memory
 from app.services.conversation.actions import MIN_ACTION_GAP_S, WRAP_UP_INSTRUCTION, action_instruction, wrap_up_delay
 from app.services.conversation.live import INPUT_RATE, OPENING_PROMPT, VOICE, LiveSettings, live_config
 from app.services.conversation.pronunciation import PronunciationCoach, TurnPronunciation
@@ -139,6 +140,7 @@ async def _run_session(ws: WebSocket, settings: LiveSettings, user: User, limits
         db.add(record)
         await db.commit()
         record_id = record.id
+        learner_context = await memory.tutor_context(db, user_id)
     log.info("conversation %s start %s", record_id, settings)
 
     # Browser input is buffered so it survives Gemini reconnects (Live connections get GoAway after ~10 min).
@@ -152,7 +154,7 @@ async def _run_session(ws: WebSocket, settings: LiveSettings, user: User, limits
         async with asyncio.timeout(limits.max_seconds):
             while True:
                 async with client.aio.live.connect(
-                    model=s.live_model, config=live_config(settings, resume["handle"], coach.enabled)
+                    model=s.live_model, config=live_config(settings, resume["handle"], coach.enabled, learner_context)
                 ) as session:
                     if first:
                         first = False

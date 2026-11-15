@@ -7,12 +7,15 @@ from pydantic import BaseModel
 from app.schemas.ai import (
     AnswerGrade,
     CommonMistake,
+    ConversationRecap,
     CriterionScore,
     ExerciseDraft,
     ExerciseSetDraft,
     GrammarExample,
     GrammarLessonDraft,
     GrammarSection,
+    SummaryMistake,
+    SummaryWord,
     TextTranslation,
     UsefulPhrase,
     VocabLessonDraft,
@@ -97,6 +100,18 @@ class FakeAI:
                 ],
                 tips_vi=["mẹo"],
                 exercises=EXERCISES,
+            )
+        if schema is ConversationRecap:
+            return ConversationRecap(
+                mistakes=[SummaryMistake(category="Thì quá khứ", wrong="I go", right="I went", explain_vi="quá khứ")],
+                new_words=[
+                    SummaryWord(
+                        word="exhausted", meaning_vi="kiệt sức", part_of_speech="adj", example_en="I was exhausted."
+                    )
+                ],
+                strengths_vi=["Nói câu dài hơn"],
+                goals_vi=["Dùng thì quá khứ khi kể chuyện"],
+                goal_comment_vi="Đã kể được về bản thân.",
             )
         if schema is WordInfo:
             word = prompt.split("word or phrase: ")[1].split("\n")[0].strip()

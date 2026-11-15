@@ -110,6 +110,12 @@ task that uses them (`services/topics.py`).
 - Conversation: "Đeo tai nghe" on = mic stays open while Emma speaks (barge-in); off = the client pauses the mic
   while she speaks.
 - The tutor always uses the Gemini voice `Kore` (no voice picker).
+- End-of-session recap (`services/conversation/recap.py`): `POST /api/conversations/{id}/recap` builds it once
+  (transcript numbers + one regular Gemini call: mistakes, new words, strengths, goals) and stores it in
+  `conversation_sessions.summary`. Not counted against the quota.
+- Learner memory (`services/conversation/memory.py`, table `learner_memories`): recurring mistakes by category and
+  the last goals, folded in from each recap; plus deck words due soonest. Injected into the tutor prompt as data.
+  Learning data only (no personal details); the learner can view / clear it on the account page.
 - "I don't understand" / "tôi không hiểu": Emma calls the Live function `show_vietnamese(english, vietnamese)`;
   the server sends `{"type": "translation"}` to the UI (dashed bubble, saved in the transcript as role
   `translation`), then she repeats in simpler English. Text only, so it applies at every level.
