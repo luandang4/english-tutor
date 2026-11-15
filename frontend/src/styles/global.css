@@ -142,6 +142,8 @@ button, input, select, textarea { font: inherit; color: inherit; }
 }
 .sidebar-foot { margin-top: auto; padding: 12px; font-size: 0.75rem; color: var(--muted); }
 .main { min-width: 0; overflow-y: auto; scrollbar-gutter: stable; }
+/* the conversation page scrolls inside itself: no page scrollbar and no reserved gutter */
+.main:has(.convo) { overflow: hidden; scrollbar-gutter: auto; }
 .page { max-width: 1120px; margin: 0 auto; padding: 28px 32px 48px; display: flex; flex-direction: column; gap: 24px; }
 .tabbar { display: none; }
 
