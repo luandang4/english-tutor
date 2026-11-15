@@ -77,9 +77,18 @@ task that uses them (`services/topics.py`).
   per CEFR level (English style, how much Vietnamese is allowed, correction style, enhancement on/off, reply
   length). The level chosen at the start is fixed for the session: the learner speaking Vietnamese never
   raises the amount of Vietnamese Emma uses.
-- **Strict correction** on every level; **enhancement** (upgrading correct but plain sentences) only at B2/C1.
-- **No cutting in**: Gemini Live VAD uses low end-of-speech sensitivity and `LIVE_END_OF_SPEECH_MS` (1200 ms)
-  of silence before a learner turn ends.
+- **Strict correction** on every level, with priority for typical Vietnamese-learner errors; **enhancement**
+  (upgrading correct but plain sentences) on every level, one step above the learner (A1 full sentence → C1
+  nuance / idiom), never in a turn with a real error, at a frequency the learner picks (Ít / Vừa / Nhiều).
+- **Help ladder** when the learner is stuck: narrow the question → sentence frame → 2 model answers → re-ask.
+- **On-screen cards** via Live function calls (`services/conversation/tools.py`): `show_vietnamese`
+  (translation), `show_feedback` (correction / "Nói hay hơn"), `show_hint` ("Gợi ý trả lời"; Vietnamese only at
+  A1–B1, stripped server-side above). Cards are saved in the transcript as their own turns.
+- **Quick-help buttons** send `{"type": "action"}`; the server maps whitelisted actions to fixed instructions
+  (`services/conversation/actions.py`), never forwarding client text. The browser sends `auto_hint` after 6 s of
+  silence following Emma's question. 2 minutes before the session limit Emma is told to wrap up.
+- **No cutting in**: Gemini Live VAD uses low end-of-speech sensitivity and a per-level silence before a learner
+  turn ends (A1 2000 ms, A2 1600, B1 1200, B2/C1 900; `LIVE_END_OF_SPEECH_MS` forces one value).
 - **Pronunciation from real audio only** (`services/conversation/pronunciation.py`): the server keeps each
   spoken learner turn's mic audio + transcript. After Emma has answered it, the turn is trimmed and scored by
   Azure (reference text = the transcript; mixed Vietnamese, typed, too short or >30 s turns are skipped). The

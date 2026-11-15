@@ -1,11 +1,14 @@
+import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 
 import { useConversation, useConversations, useDeleteConversation, useMeta } from '../../api/hooks'
+import type { ConversationSummary } from '../../api/types'
 import { EmptyState, ErrorBox, Icon, Loading, PageHeader } from '../../components/ui'
 import { formatDuration, timeAgo } from '../../lib/format'
-import { TranslationBubble } from './TranslationBubble'
-import { TurnPronunciationView } from './TurnPronunciationView'
+import { TurnView } from './TurnView'
 import './conversation.css'
+
+const ALL = '' // filter value: every scenario
 
 function useScenarioLabel() {
   const { data } = useMeta()
@@ -13,15 +16,42 @@ function useScenarioLabel() {
     c.scenario === 'custom' && c.topic ? `✨ ${c.topic}` : (data?.scenarios.find((s) => s.value === c.scenario)?.label ?? c.scenario)
 }
 
+/** Scenarios that appear in the learner's history, in first-seen order ("custom" grouped as one). */
+function scenarioChoices(list: ConversationSummary[], label: (c: ConversationSummary) => string) {
+  const seen = new Map<string, string>()
+  for (const c of list) {
+    if (!seen.has(c.scenario)) seen.set(c.scenario, c.scenario === 'custom' ? '✨ Tình huống của bạn' : label(c))
+  }
+  return [...seen]
+}
+
 export function ConversationHistoryPage() {
   const { data, error, isPending, refetch } = useConversations()
   const label = useScenarioLabel()
+  const [filter, setFilter] = useState(ALL)
+  const shown = data?.filter((c) => filter === ALL || c.scenario === filter) ?? []
+  const choices = data ? scenarioChoices(data, label) : []
   return (
     <div className="page">
       <PageHeader
         title="Lịch sử hội thoại"
         subtitle="Xem lại transcript các buổi nói chuyện với Emma."
         back={{ to: '/conversation', label: 'Hội thoại' }}
+        actions={
+          choices.length > 1 && (
+            <label className="field history-filter">
+              Tình huống
+              <select className="select" value={filter} onChange={(e) => setFilter(e.target.value)}>
+                <option value={ALL}>Tất cả</option>
+                {choices.map(([value, text]) => (
+                  <option key={value} value={value}>
+                    {text}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )
+        }
       />
       {isPending ? (
         <Loading />
@@ -39,7 +69,7 @@ export function ConversationHistoryPage() {
         />
       ) : (
         <div className="list">
-          {data.map((c) => (
+          {shown.map((c) => (
             <Link key={c.id} to={`/conversation/history/${c.id}`} className="list-item">
               <span className="icon">🎙️</span>
               <div className="body">
@@ -91,18 +121,10 @@ export function ConversationDetailPage() {
           </button>
         }
       />
-      <div className="card chat" style={{ maxWidth: 760 }}>
-        {data.transcript.map((t, i) =>
-          t.role === 'translation' ? (
-            <TranslationBubble key={i} vietnamese={t.text} english={t.source} />
-          ) : (
-          <div key={i} className={`msg ${t.role}`}>
-            <span className="who">{t.role === 'tutor' ? 'Emma' : 'Bạn'}</span>
-            {t.text}
-            {t.pronunciation && <TurnPronunciationView result={t.pronunciation} />}
-          </div>
-          ),
-        )}
+      <div className="card chat history-chat">
+        {data.transcript.map((t, i) => (
+          <TurnView key={i} turn={t} />
+        ))}
       </div>
     </div>
   )

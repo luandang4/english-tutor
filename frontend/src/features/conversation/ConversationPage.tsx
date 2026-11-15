@@ -3,74 +3,91 @@ import { Link } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 
 import { keys, useMeta } from '../../api/hooks'
-import type { TurnPronunciation } from '../../api/types'
+import type { ConversationTurn } from '../../api/types'
 import { Icon } from '../../components/ui'
-import { LiveSession } from '../../lib/audio/live-session'
-import { useLevel, usePreference } from '../../lib/preferences'
+import { LiveSession, type LiveAction, type LiveSettings } from '../../lib/audio/live-session'
+import { useLevel } from '../../lib/preferences'
+import { useWakeLock } from '../../lib/wakeLock'
 import { Orb, type OrbMode } from '../../orb/orb'
-import { TranslationBubble } from './TranslationBubble'
-import { TurnPronunciationView } from './TurnPronunciationView'
+import { EndCard, type EndReason } from './EndCard'
+import { ages, useLiveTranscript, type Line } from './liveTranscript'
+import { CUSTOM, useConvoPreferences } from './preferences'
+import { QuickHelp } from './QuickHelp'
+import { PhraseSheet } from './ScenarioBrief'
+import { SessionBar } from './SessionBar'
+import { SetupPanel } from './SetupPanel'
+import { TurnView, type TurnActions } from './TurnView'
+import { useSilenceHint } from './useSilenceHint'
+import { useStickToBottom } from './useStickToBottom'
 import './conversation.css'
 
-const CUSTOM = 'custom' // learner-defined scenario (title + wishes), see services/conversation/live.py
 const USER_TALK_RMS = 0.025 // mic level that counts as "the learner is speaking"
 
-const ROLE_TEXT: Record<OrbMode, string> = {
-  idle: 'Giáo viên tiếng Anh của bạn',
-  connecting: 'Đang kết nối…',
-  listening: 'Đang lắng nghe…',
-  tutor: 'Đang nói…',
-  user: 'Đang nghe bạn nói…',
-}
-const STATUS_TEXT: Record<OrbMode, string> = {
-  idle: 'Sẵn sàng',
-  connecting: 'Đang kết nối…',
-  listening: 'Đang nghe',
-  tutor: 'Emma đang nói',
-  user: 'Đang nghe',
+export interface SessionEndInfo {
+  sessionId: number | null
+  reason: EndReason
+  turns: ConversationTurn[]
 }
 
-interface Message {
-  id: number
-  role: 'user' | 'tutor' | 'translation' | 'error'
-  text: string
-  source?: string // translation: the English it translates
-  pronunciation?: TurnPronunciation
+export interface ConversationPageProps extends TurnActions {
+  /** Called once when a session that had started ends (learner stopped, time limit, or error).
+   * Hook point for the end-of-session summary screen. */
+  onEnded?: (info: SessionEndInfo) => void
 }
 
-export function ConversationPage() {
+/** One transcript line, faded by age: the latest exchange is large, older lines get smaller and dimmer. */
+function LineView(props: { line: Line; age: number; done: boolean } & TurnActions) {
+  const { line, age, done, ...actions } = props
+  if (line.role === 'notice') return <div className={`notice ${line.tone}`}>{line.text}</div>
+  const fade = age === 0 ? 'current' : age <= 2 ? 'recent' : 'old'
+  return (
+    <div className={`line ${fade}`}>
+      <TurnView turn={line} done={done} {...actions} />
+    </div>
+  )
+}
+
+export function ConversationPage({ onEnded, onSaveFeedback, onAddWord }: ConversationPageProps = {}) {
   const { data: meta } = useMeta()
   const qc = useQueryClient()
   const [level, setLevel] = useLevel()
-  const [scenario, setScenario] = usePreference('et.convo.scenario', 'free_talk')
-  const [customTitle, setCustomTitle] = usePreference('et.convo.customTitle', '')
-  const [customRequest, setCustomRequest] = usePreference('et.convo.customRequest', '')
-  const isCustom = scenario === CUSTOM
-  const customReady = !isCustom || customTitle.trim().length >= 2
-  // Headphones on: the mic stays open while Emma talks (you can interrupt). Off: the mic is paused while she
-  // speaks, so speaker sound is not picked up as the learner's voice.
-  const [headphones, setHeadphones] = usePreference('et.convo.headphones', false)
-  const halfDuplex = !headphones
+  const prefs = useConvoPreferences()
+  const isCustom = prefs.scenario === CUSTOM
+  const customReady = !isCustom || prefs.customTitle.trim().length >= 2
+  const preset = isCustom ? undefined : meta?.scenarios.find((s) => s.value === prefs.scenario)
+  const halfDuplex = !prefs.headphones
 
   const [mode, setMode] = useState<OrbMode>('idle')
   const [running, setRunning] = useState(false)
-  const [messages, setMessages] = useState<Message[]>([])
-  const [caption, setCaption] = useState<{ role: 'user' | 'tutor'; text: string } | null>(null)
+  const [ended, setEnded] = useState<{ reason: EndReason; sessionId: number | null; saved: boolean } | null>(null)
+  const [setupError, setSetupError] = useState<string | null>(null)
+  const [endsAt, setEndsAt] = useState<number | null>(null)
+  const [showPhrases, setShowPhrases] = useState(false)
   const [text, setText] = useState('')
-  const [chatOpen, setChatOpen] = useState(true)
+  const { lines, openId, actions: transcript } = useLiveTranscript()
 
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const ringRef = useRef<HTMLSpanElement>(null)
-  const chatRef = useRef<HTMLDivElement>(null)
+  const talkRef = useRef<HTMLDivElement>(null)
   const orbRef = useRef<Orb | null>(null)
   const sessionRef = useRef<LiveSession | null>(null)
-  const bubbleOpen = useRef(false) // is the last message still receiving fragments?
-  const nextId = useRef(1)
-  const typed = useRef(new Set<number>()) // typed messages have no audio to score
+  const sessionId = useRef<number | null>(null)
+  const ready = useRef(false) // the server accepted the session (it may be saved)
+  const endReason = useRef<EndReason>('stopped')
+  const pendingHintArm = useRef(false) // Emma finished generating; start the silence timer once her audio ends
+  const unmounted = useRef(false)
+
+  const live = running || mode === 'connecting'
+  const view = live ? 'live' : ended ? 'ended' : 'setup'
+  const silence = useSilenceHint(() => sessionRef.current?.sendAction('auto_hint'))
+  const { pinned, scrollToBottom } = useStickToBottom(talkRef, view !== 'setup')
+  useWakeLock(live)
 
   useEffect(() => {
+    unmounted.current = false
     orbRef.current = new Orb(canvasRef.current!)
     return () => {
+      unmounted.current = true
       orbRef.current?.destroy()
       sessionRef.current?.stop()
     }
@@ -84,11 +101,13 @@ export function ConversationPage() {
     if (sessionRef.current) sessionRef.current.halfDuplex = halfDuplex
   }, [halfDuplex])
 
+  // Full-screen session on phones: the bottom tab bar is hidden while talking.
   useEffect(() => {
-    chatRef.current?.scrollTo({ top: chatRef.current.scrollHeight })
-  }, [messages])
+    document.body.classList.toggle('convo-live', live)
+    return () => document.body.classList.remove('convo-live')
+  }, [live])
 
-  // Per-frame: decide who is talking and point the orb at that audio.
+  // Per-frame: decide who is talking, point the orb at that audio, and track learner silence.
   useEffect(() => {
     if (!running) return
     let raf = 0
@@ -100,6 +119,11 @@ export function ConversationPage() {
       const muted = s.halfDuplex && s.tutorSpeaking()
       if (s.micLevel > USER_TALK_RMS && !muted) lastUserTalk = now
       const m: OrbMode = s.tutorSpeaking() ? 'tutor' : now - lastUserTalk < 350 ? 'user' : 'listening'
+      if (m === 'user') silence.learnerActive()
+      if (pendingHintArm.current && !s.tutorSpeaking()) {
+        pendingHintArm.current = false
+        silence.arm(transcript.lastTutorText())
+      }
       setMode((prev) => (prev === m ? prev : m))
       orbRef.current?.setSource(m === 'tutor' ? s.outAnalyser : muted ? null : s.inAnalyser)
       const lvl = muted ? 0 : Math.min(1, s.micLevel * 12)
@@ -111,71 +135,89 @@ export function ConversationPage() {
     }
     raf = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(raf)
-  }, [running])
+  }, [running, silence, transcript])
 
-  const push = (role: Message['role'], text: string, source?: string) => {
-    bubbleOpen.current = false
-    setMessages((ms) => [...ms, { id: nextId.current++, role, text, source }])
+  const finish = () => {
+    sessionRef.current = null
+    pendingHintArm.current = false
+    silence.cancel()
+    if (unmounted.current) return
+    setRunning(false)
+    setMode('idle')
+    setEndsAt(null)
+    setShowPhrases(false)
+    orbRef.current?.setSource(null)
+    if (ringRef.current) ringRef.current.style.opacity = '0'
+    transcript.closeLine()
+    void qc.invalidateQueries({ queryKey: keys.progress })
+    void qc.invalidateQueries({ queryKey: keys.conversations })
+    if (!ready.current) return // never started: stay on the setup screen (with the error, if any)
+    const info: SessionEndInfo = { sessionId: sessionId.current, reason: endReason.current, turns: transcript.turns() }
+    setEnded({ reason: info.reason, sessionId: info.sessionId, saved: transcript.hasLearnerLine() })
+    onEnded?.(info)
   }
 
-  const appendTranscript = (role: 'user' | 'tutor', fragment: string) => {
-    setMessages((ms) => {
-      const last = ms.at(-1)
-      if (bubbleOpen.current && last?.role === role) {
-        const updated = { ...last, text: last.text + fragment }
-        setCaption({ role, text: updated.text })
-        return [...ms.slice(0, -1), updated]
-      }
-      bubbleOpen.current = true
-      setCaption({ role, text: fragment })
-      return [...ms, { id: nextId.current++, role, text: fragment }]
-    })
-  }
-
-  // Azure scores a spoken turn shortly after Emma answered it: attach to the latest spoken turn without a score.
-  const attachPronunciation = (result: TurnPronunciation) => {
-    setMessages((ms) => {
-      const i = ms.findLastIndex((m) => m.role === 'user' && !m.pronunciation && !typed.current.has(m.id))
-      if (i < 0) return ms
-      return ms.map((m, j) => (j === i ? { ...m, pronunciation: result } : m))
-    })
-  }
+  const settings = (): LiveSettings => ({
+    level,
+    scenario: prefs.scenario,
+    enhancement: prefs.enhancement,
+    ...(isCustom ? { custom_title: prefs.customTitle.trim(), custom_request: prefs.customRequest.trim() } : {}),
+  })
 
   const start = async () => {
+    transcript.clear()
+    setEnded(null)
+    setSetupError(null)
+    setEndsAt(null)
+    ready.current = false
+    sessionId.current = null
+    endReason.current = 'stopped'
     setMode('connecting')
-    setCaption(null)
     const session = new LiveSession({
-      onReady: () => {
+      onReady: (id) => {
+        ready.current = true
+        sessionId.current = id
         setRunning(true)
         setMode('listening')
       },
-      onTranscript: appendTranscript,
-      onTurnEnd: () => (bubbleOpen.current = false),
-      onPronunciation: attachPronunciation,
-      onTranslation: (english, vietnamese) => push('translation', vietnamese, english),
-      onInterrupted: () => (bubbleOpen.current = false),
-      onError: (m) => push('error', m),
-      onClosed: () => {
-        sessionRef.current = null
-        setRunning(false)
-        setMode('idle')
-        orbRef.current?.setSource(null)
-        if (ringRef.current) ringRef.current.style.opacity = '0'
-        bubbleOpen.current = false
-        void qc.invalidateQueries({ queryKey: keys.progress })
-        void qc.invalidateQueries({ queryKey: keys.conversations })
+      onLimits: (seconds) => setEndsAt(Date.now() + seconds * 1000),
+      onWrapUp: () => transcript.notice('Còn khoảng 2 phút. Emma sẽ tóm tắt 2 điều cần nhớ rồi chào bạn.', 'info'),
+      onSessionEnd: (reason) => {
+        endReason.current = reason === 'time_limit' ? 'time_limit' : 'stopped'
       },
+      onTranscript: (role, fragment) => {
+        if (role === 'user') silence.learnerActive()
+        else silence.cancel()
+        transcript.fragment(role, fragment)
+      },
+      onTurnEnd: () => {
+        transcript.closeLine()
+        pendingHintArm.current = true
+      },
+      onInterrupted: () => {
+        transcript.closeLine()
+        pendingHintArm.current = false
+      },
+      onPronunciation: transcript.pronunciation,
+      onTranslation: transcript.translation,
+      onFeedback: transcript.feedback,
+      onHint: (card) => {
+        silence.cancel()
+        transcript.hint(card)
+      },
+      onError: (message) => {
+        if (!ready.current) return setSetupError(message)
+        endReason.current = 'error'
+        transcript.notice(message, 'error')
+      },
+      onClosed: finish,
     })
     session.halfDuplex = halfDuplex
     sessionRef.current = session
     try {
-      await session.start(
-        isCustom
-          ? { level, scenario, custom_title: customTitle.trim(), custom_request: customRequest.trim() }
-          : { level, scenario },
-      )
+      await session.start(settings())
     } catch (e) {
-      push('error', `Không truy cập được micro: ${e instanceof Error ? e.message : e}`)
+      setSetupError(`Không truy cập được micro: ${e instanceof Error ? e.message : e}`)
       session.stop()
     }
   }
@@ -186,156 +228,132 @@ export function ConversationPage() {
     e.preventDefault()
     const t = text.trim()
     if (!t || !sessionRef.current) return
-    typed.current.add(nextId.current)
-    push('user', t)
-    setCaption({ role: 'user', text: t })
+    silence.learnerActive()
+    transcript.typed(t)
     sessionRef.current.sendText(t)
     setText('')
   }
 
-  const captionText = caption && (caption.text.length > 200 ? '…' + caption.text.slice(-200) : caption.text).trim()
+  const action = (a: LiveAction) => {
+    silence.helpRequested()
+    sessionRef.current?.sendAction(a)
+  }
+
+  const lineAges = ages(lines)
 
   return (
-    <div className={`convo ${running ? 'running' : ''}`}>
-      <div className="convo-head">
-        <div>
-          <h1>Hội thoại với Emma</h1>
-        </div>
-        <div className="row">
-          <Link to="/conversation/history" className="btn sm ghost">
-            <Icon name="history" size={16} /> Lịch sử
-          </Link>
-          <div className="live-status" data-state={mode}>
-            <span className="dot" />
-            {STATUS_TEXT[mode]}
-          </div>
-        </div>
+    <div className={`convo view-${view} layout-${prefs.layout} font-${prefs.fontSize}`} data-mode={mode}>
+      <div className="orb-wrap" aria-hidden="true">
+        <canvas ref={canvasRef} />
       </div>
 
-      <section className="stage" data-mode={mode}>
-        <div className="orb-wrap">
-          <canvas ref={canvasRef} aria-hidden="true" />
-        </div>
-        <div className="persona">
-          <div className="name gradient-text">Emma</div>
-          <div className="role">{ROLE_TEXT[mode]}</div>
-        </div>
-
-        {running || mode === 'connecting' ? (
-          <div className={`caption ${caption?.role ?? ''}`} aria-live="polite">
-            {captionText}
+      {view === 'setup' ? (
+        <>
+          <header className="convo-head">
+            <h1>Hội thoại với Emma</h1>
+            <Link to="/conversation/history" className="btn sm ghost">
+              <Icon name="history" size={16} /> Lịch sử
+            </Link>
+          </header>
+          <div className="persona">
+            <div className="name gradient-text">Emma</div>
+            <div className="role">Giáo viên tiếng Anh của bạn</div>
           </div>
-        ) : (
-          <div className="setup">
-            <label className="field">
-              Trình độ
-              <select className="select" value={level} onChange={(e) => setLevel(e.target.value as typeof level)}>
-                {meta?.levels.map((l) => (
-                  <option key={l.value} value={l.value}>
-                    {l.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="field">
-              Tình huống
-              <select className="select" value={scenario} onChange={(e) => setScenario(e.target.value)}>
-                {meta?.scenarios.map((s) => (
-                  <option key={s.value} value={s.value}>
-                    {s.label}
-                  </option>
-                ))}
-                <option value={CUSTOM}>✨ Tình huống của bạn…</option>
-              </select>
-            </label>
-            {isCustom && (
-              <div className="custom-scenario">
-                <label className="field">
-                  Chủ đề / tình huống
-                  <input
-                    className="input"
-                    value={customTitle}
-                    onChange={(e) => setCustomTitle(e.target.value)}
-                    maxLength={120}
-                    placeholder="VD: Phỏng vấn xin việc vị trí kế toán"
-                  />
-                </label>
-                <label className="field">
-                  Yêu cầu thêm (tuỳ chọn)
-                  <textarea
-                    className="textarea"
-                    rows={2}
-                    value={customRequest}
-                    onChange={(e) => setCustomRequest(e.target.value)}
-                    maxLength={1000}
-                    placeholder="VD: Emma đóng vai nhà tuyển dụng khó tính, hỏi về kinh nghiệm làm việc với Excel"
-                  />
-                </label>
-              </div>
-            )}
-            <label className="toggle">
-              <input type="checkbox" checked={headphones} onChange={(e) => setHeadphones(e.target.checked)} />
-              <span className="switch" aria-hidden="true" />
-              <span>
-                Đeo tai nghe{' '}
-                <small>Bật nếu đang đeo tai nghe để có thể ngắt lời Emma. Tắt thì mic tự tạm ngắt khi Emma nói.</small>
-              </span>
-            </label>
-          </div>
-        )}
-      </section>
-
-      <aside className={`transcript ${messages.length ? '' : 'empty-chat'}`}>
-        <div className="transcript-head">
-          <span>Hội thoại</span>
-          <button type="button" className="btn sm ghost" onClick={() => setChatOpen((o) => !o)} aria-expanded={chatOpen}>
-            {chatOpen ? 'Ẩn' : 'Hiện'}
-          </button>
-        </div>
-        {chatOpen && (
-          <div className="chat" ref={chatRef} aria-live="polite">
-            {messages.length === 0 && (
-              <div className="empty">Chọn trình độ và tình huống, rồi bấm nút micro. Emma sẽ chào bạn trước.</div>
-            )}
-            {messages.map((m) =>
-              m.role === 'translation' ? (
-                <TranslationBubble key={m.id} vietnamese={m.text} english={m.source} />
-              ) : (
-              <div key={m.id} className={`msg ${m.role}`}>
-                {m.role !== 'error' && <span className="who">{m.role === 'tutor' ? 'Emma' : 'Bạn'}</span>}
-                {m.text}
-                {m.pronunciation && <TurnPronunciationView result={m.pronunciation} />}
-              </div>
-              ),
-            )}
-          </div>
-        )}
-      </aside>
-
-      <footer className="controls">
-        <button
-          className={`mic ${running ? 'stop' : ''}`}
-          onClick={running ? stop : start}
-          disabled={mode === 'connecting' || (!running && !customReady)}
-          aria-label={running ? 'Kết thúc buổi học' : 'Bắt đầu buổi học'}
-        >
-          <span className="mic-ring" ref={ringRef} />
-          <Icon name={running ? 'stop' : 'mic'} size={28} />
-        </button>
-        <span className="mic-hint">{running ? 'Bấm để kết thúc' : 'Bấm để bắt đầu'}</span>
-        <form className="text-form" onSubmit={send}>
-          <input
-            placeholder="Hoặc gõ tin nhắn…"
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            disabled={!running}
-            autoComplete="off"
+          {setupError && <div className="alert error setup-error">{setupError}</div>}
+          <SetupPanel meta={meta} level={level} setLevel={setLevel} prefs={prefs} />
+          <footer className="controls start">
+            <button className="mic" onClick={start} disabled={!customReady} aria-label="Bắt đầu buổi học">
+              <span className="mic-ring" ref={ringRef} />
+              <Icon name="mic" size={28} />
+            </button>
+            <span className="mic-hint">
+              {customReady ? 'Bấm để bắt đầu. Emma sẽ chào bạn trước.' : 'Nhập chủ đề để bắt đầu.'}
+            </span>
+          </footer>
+        </>
+      ) : (
+        <>
+          <SessionBar
+            mode={mode}
+            endsAt={endsAt}
+            layout={prefs.layout}
+            onLayout={prefs.setLayout}
+            fontSize={prefs.fontSize}
+            onFontSize={prefs.setFontSize}
+            onPhrases={preset ? () => setShowPhrases((s) => !s) : undefined}
           />
-          <button type="submit" aria-label="Gửi" disabled={!running || !text.trim()}>
-            <Icon name="send" size={18} />
-          </button>
-        </form>
-      </footer>
+          <div className="talk-wrap">
+            <div className="talk" ref={talkRef} aria-live="polite">
+              <div className="talk-col">
+                {lines.length === 0 && !ended && (
+                  <div className="talk-empty">
+                    {mode === 'connecting' ? 'Đang kết nối với Emma…' : 'Emma sẽ chào bạn trước. Cứ nói tự nhiên nhé!'}
+                  </div>
+                )}
+                {lines.map((l, i) => (
+                  <LineView
+                    key={l.id}
+                    line={l}
+                    age={lineAges[i]}
+                    done={l.id !== openId}
+                    onSaveFeedback={onSaveFeedback}
+                    onAddWord={onAddWord}
+                  />
+                ))}
+                {ended && (
+                  <EndCard
+                    reason={ended.reason}
+                    sessionId={ended.sessionId}
+                    saved={ended.saved}
+                    onNew={() => {
+                      setEnded(null)
+                      transcript.clear()
+                    }}
+                  />
+                )}
+              </div>
+            </div>
+            {!pinned && (
+              <button type="button" className="to-latest" onClick={scrollToBottom}>
+                <Icon name="arrowDown" size={16} /> Về câu mới nhất
+              </button>
+            )}
+          </div>
+
+          {view === 'live' && (
+            <footer className="controls">
+              <div className="controls-inner">
+                <QuickHelp onAction={action} disabled={!running} />
+                <button
+                  className="mic stop"
+                  onClick={stop}
+                  disabled={!running}
+                  aria-label="Kết thúc buổi học"
+                  title="Kết thúc buổi học"
+                >
+                  <span className="mic-ring" ref={ringRef} />
+                  <Icon name="stop" size={26} />
+                </button>
+                <form className="text-form" onSubmit={send}>
+                  <input
+                    placeholder="Hoặc gõ tin nhắn…"
+                    value={text}
+                    onChange={(e) => setText(e.target.value)}
+                    disabled={!running}
+                    autoComplete="off"
+                    enterKeyHint="send"
+                  />
+                  <button type="submit" aria-label="Gửi" disabled={!running || !text.trim()}>
+                    <Icon name="send" size={18} />
+                  </button>
+                </form>
+              </div>
+            </footer>
+          )}
+
+          {showPhrases && preset && <PhraseSheet scenario={preset} level={level} onClose={() => setShowPhrases(false)} />}
+        </>
+      )}
     </div>
   )
 }

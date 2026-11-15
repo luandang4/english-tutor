@@ -13,6 +13,7 @@ from app.schemas.ai import (
     GrammarExample,
     GrammarLessonDraft,
     GrammarSection,
+    TextTranslation,
     UsefulPhrase,
     VocabLessonDraft,
     VocabWord,
@@ -151,4 +152,8 @@ class FakeAI:
                 ],
                 improved_version="Improved.",
             )
+        if schema is TextTranslation:
+            if "Word or phrase:" in prompt:
+                return TextTranslation(vietnamese="lịch trình", ipa="/aɪˈtɪnəˌrɛri/", part_of_speech="noun")
+            return TextTranslation(vietnamese="Bản dịch tiếng Việt.", ipa="", part_of_speech="")
         raise AssertionError(f"unexpected schema {schema}")

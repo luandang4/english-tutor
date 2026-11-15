@@ -17,7 +17,7 @@ def test_every_level_has_a_policy() -> None:
 
 @pytest.mark.parametrize("level", list(LEVELS))
 def test_prompt_locks_level_and_requires_correction(level: str) -> None:
-    prompt = system_prompt(level, SCENARIOS["free_talk"]["ai"], pronunciation_data=True)
+    prompt = system_prompt(level, SCENARIOS["free_talk"].ai, pronunciation_data=True)
     assert f"CEFR {level}" in prompt
     assert "locked" in prompt
     assert "does NOT change this rule" in prompt
@@ -25,11 +25,13 @@ def test_prompt_locks_level_and_requires_correction(level: str) -> None:
     assert "[Pronunciation data]" in prompt
 
 
-def test_enhancement_only_for_advanced_levels() -> None:
-    for level in ("A1", "A2", "B1"):
-        assert "No enhancement at this level" in system_prompt(level, "x", False)
-    for level in ("B2", "C1"):
-        assert "Enhancement (this level)" in system_prompt(level, "x", False)
+@pytest.mark.parametrize("level", list(LEVELS))
+def test_enhancement_on_every_level_with_its_own_policy(level: str) -> None:
+    prompt = system_prompt(level, "x", False)
+    assert f"SAY IT BETTER (sentence upgrades, level {level})" in prompt
+    assert LEVEL_POLICY[level].enhancement in prompt
+    assert "Never in a turn that has a real error" in prompt
+    assert "one step above" in prompt
 
 
 def test_without_azure_the_tutor_must_not_judge_pronunciation() -> None:

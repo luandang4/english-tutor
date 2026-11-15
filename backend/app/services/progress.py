@@ -17,13 +17,9 @@ from app.models.vocab import ReviewLog, VocabCard
 from app.models.writing import WritingSubmission, WritingTask
 from app.schemas.api import ActivityDay, ProgressOut, RecentItem, SkillProgress
 from app.services import srs
-from app.services.conversation.live import SCENARIOS
+from app.services.conversation.scenarios import scenario_label
 
 ACTIVITY_DAYS = 28
-
-
-def scenario_label(key: str) -> str:
-    return SCENARIOS.get(key, {}).get("label", key)
 
 
 def _avg(values: list[float]) -> float | None:
