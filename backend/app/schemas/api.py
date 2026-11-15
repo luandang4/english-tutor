@@ -5,7 +5,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from app.core.constants import LEVELS, Skill
+from app.core.constants import LEVELS, Feature, Skill
 from app.core.security import password_problem
 
 LevelCode = Literal["A1", "A2", "B1", "B2", "C1"]
@@ -45,30 +45,107 @@ class PasswordChangeIn(BaseModel):
     _password = field_validator("new_password")(_strong_password)
 
 
+AccessStatusLiteral = Literal["admin", "active", "pending", "expired", "locked"]
+
+
+class PlanBrief(BaseModel):
+    code: str
+    name: str
+    expires_at: datetime | None = Field(description="null = never expires")
+
+
 class UserOut(BaseModel):
     id: int
     email: str
     display_name: str
     created_at: datetime
     is_admin: bool
-    features: list[str] = Field(description="Features this user may use right now (grants + system switches)")
-    pending: bool = Field(description="Approved for nothing yet: waiting for an admin")
+    features: list[str] = Field(description="Features this user may use right now (plan + system switches)")
+    view_features: list[str] = Field(default=[], description="Features whose own history the user may open")
+    pending: bool = Field(description="No plan yet: waiting for an admin")
+    access_status: AccessStatusLiteral = "active"
+    plan: PlanBrief | None = None
+    upgrade_contact: str = ""
 
 
 class FeatureUsage(BaseModel):
     feature: str
     label: str
     unit: str
-    used: int
-    limit: int | None = Field(description="Daily limit; null = unlimited")
+    used: int = Field(description="Used today")
+    limit: int | None = Field(description="Daily limit incl. bonus; null = unlimited")
+    used_month: int = 0
+    limit_month: int | None = Field(default=None, description="Monthly limit incl. bonus; null = unlimited")
 
 
 # ---------- admin ----------
 class SystemSettingsIO(BaseModel):
     features_enabled: dict[str, bool]
     registration_open: bool
-    default_features: list[str]
-    daily_limits: dict[str, int] = Field(description="Per user per day; 0 = unlimited")
+    upgrade_contact: str = Field(default="", max_length=300)
+
+
+MAX_LIMIT = 100_000
+
+
+class PlanLimit(BaseModel):
+    daily: int = Field(default=0, ge=0, le=MAX_LIMIT, description="0 = unlimited")
+    monthly: int = Field(default=0, ge=0, le=MAX_LIMIT, description="0 = unlimited")
+
+
+class PlanIn(BaseModel):
+    code: str = Field(pattern=r"^[a-z0-9][a-z0-9-]{1,39}$")
+    name: str = Field(min_length=1, max_length=80)
+    description: str = Field(default="", max_length=500)
+    features: list[Feature] = []
+    limits: dict[Feature, PlanLimit] = {}
+    max_session_minutes: int | None = Field(default=None, ge=1, le=180, description="null = server default")
+    duration_days: int | None = Field(default=None, ge=1, le=3650, description="Default expiry; null = never")
+    is_default_for_new: bool = False
+    is_active: bool = True
+    sort_order: int = Field(default=0, ge=0, le=1000)
+    price_label: str = Field(default="", max_length=80)
+    billing_cycle: Literal["monthly", "quarterly", "yearly"] | None = None
+
+
+class PlanOut(PlanIn):
+    id: int
+    active_users: int = 0
+
+
+class SubscriptionOut(BaseModel):
+    id: int
+    plan_id: int
+    plan_code: str
+    plan_name: str
+    starts_at: datetime
+    expires_at: datetime | None
+    status: str
+    note: str
+    source: str
+    created_at: datetime
+
+
+class SubscriptionAssign(BaseModel):
+    plan_id: int
+    expires_at: datetime | None = Field(default=None, description="null = never expires")
+    note: str = Field(default="", max_length=500)
+
+
+class GrantIn(BaseModel):
+    feature: Feature
+    amount: int = Field(ge=1, le=MAX_LIMIT)
+    scope: Literal["day", "month"] = Field(default="month", description="Today only, or this calendar month")
+    note: str = Field(default="", max_length=500)
+
+
+class GrantOut(ORM):
+    id: int
+    feature: str
+    amount: int
+    period: str
+    note: str
+    created_at: datetime
 
 
 class AdminUserOut(BaseModel):
@@ -79,14 +156,36 @@ class AdminUserOut(BaseModel):
     last_login_at: datetime | None
     is_admin: bool
     is_active: bool
-    features: list[str] = Field(description="Granted features (admins implicitly have all)")
+    access_status: AccessStatusLiteral
+    features: list[str] = Field(description="Features the plan gives (admins implicitly have all)")
+    subscription: SubscriptionOut | None = Field(description="Current subscription (or the expired one)")
+    usage: list[FeatureUsage] = Field(description="Day / month usage against the plan's limits")
+    grants: list[GrantOut] = Field(description="Bonus allowances this month")
     usage_today: dict[str, int]
 
 
 class AdminUserPatch(BaseModel):
     is_active: bool | None = None
     is_admin: bool | None = None
-    features: list[str] | None = None
+
+
+class FeatureTotal(BaseModel):
+    feature: str
+    label: str
+    unit: str
+    units: int
+    events: int
+    users: int
+
+
+class UsageReport(BaseModel):
+    month: str = Field(description="YYYY-MM in the app timezone")
+    features: list[FeatureTotal]
+    conversation_minutes: int
+    pronunciation_assessments: int
+    azure_free_hours: float = Field(description="Azure Speech free tier (F0): audio hours per month")
+    seconds_per_assessment_estimate: int = Field(description="Assumed audio length of one assessment")
+    estimated_pronunciation_hours: float = Field(description="Estimate: assessments x assumed length")
 
 
 # ---------- meta / topics ----------

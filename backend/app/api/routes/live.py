@@ -140,17 +140,18 @@ class SessionLimits:
 
 
 async def _session_limits(user: User) -> SessionLimits:
-    """Conversation must be allowed with minutes left today; the session is capped at what is left."""
-    s = get_settings()
+    """Conversation must be allowed with minutes left today and this month. The session is capped at the
+    smallest of: the plan's minutes per session (or the server default), minutes left today / this month."""
     async with SessionLocal() as db:
         await access.ensure_quota(db, user, Feature.CONVERSATION)
         left = await access.remaining_today(db, user, Feature.CONVERSATION)
+        per_session = await access.max_session_minutes(db, user) or get_settings().max_live_session_minutes
         try:
             await access.ensure_feature(db, user, Feature.PRONUNCIATION)
             pronunciation = True
         except access.AccessError:
             pronunciation = False
-    max_minutes = s.max_live_session_minutes if left is None else min(s.max_live_session_minutes, left)
+    max_minutes = per_session if left is None else min(per_session, left)
     return SessionLimits(max_seconds=max_minutes * 60, pronunciation=pronunciation)
 
 

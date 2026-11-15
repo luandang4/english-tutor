@@ -18,6 +18,21 @@ export interface User {
   features: Feature[]
   /** Not approved for anything yet: waiting for an admin. */
   pending: boolean
+  /** Features whose own history (old lessons, conversations...) may still be opened, also after expiry. */
+  view_features: Feature[]
+  access_status: AccessStatus
+  plan: PlanBrief | null
+  /** Admin's "contact to upgrade" text (Zalo, email...). */
+  upgrade_contact: string
+}
+
+export type AccessStatus = 'admin' | 'active' | 'pending' | 'expired' | 'locked'
+
+export interface PlanBrief {
+  code: string
+  name: string
+  /** null = never expires */
+  expires_at: string | null
 }
 
 export interface FeatureInfo {
@@ -28,16 +43,80 @@ export interface FeatureInfo {
 
 export interface FeatureUsage extends FeatureInfo {
   feature: Feature
+  /** used today */
   used: number
+  /** daily limit incl. bonus; null = unlimited */
   limit: number | null
+  used_month: number
+  /** monthly limit incl. bonus; null = unlimited */
+  limit_month: number | null
 }
 
 // ---------- admin ----------
 export interface SystemSettings {
   features_enabled: Record<Feature, boolean>
   registration_open: boolean
-  default_features: Feature[]
-  daily_limits: Record<Feature, number>
+  upgrade_contact: string
+}
+
+/** 0 = unlimited */
+export interface PlanLimit {
+  daily: number
+  monthly: number
+}
+
+export type BillingCycle = 'monthly' | 'quarterly' | 'yearly'
+
+export interface PlanInput {
+  code: string
+  name: string
+  description: string
+  features: Feature[]
+  limits: Partial<Record<Feature, PlanLimit>>
+  /** null = server default */
+  max_session_minutes: number | null
+  /** default expiry when assigned; null = never */
+  duration_days: number | null
+  is_default_for_new: boolean
+  is_active: boolean
+  sort_order: number
+  price_label: string
+  billing_cycle: BillingCycle | null
+}
+
+export interface Plan extends PlanInput {
+  id: number
+  active_users: number
+}
+
+export interface Subscription {
+  id: number
+  plan_id: number
+  plan_code: string
+  plan_name: string
+  starts_at: string
+  expires_at: string | null
+  status: 'active' | 'expired' | 'cancelled'
+  note: string
+  source: string
+  created_at: string
+}
+
+export interface Grant {
+  id: number
+  feature: Feature
+  amount: number
+  /** "YYYY-MM" (whole month) or "YYYY-MM-DD" (that day) */
+  period: string
+  note: string
+  created_at: string
+}
+
+export interface GrantInput {
+  feature: Feature
+  amount: number
+  scope: 'day' | 'month'
+  note: string
 }
 
 export interface AdminUser {
@@ -48,11 +127,32 @@ export interface AdminUser {
   last_login_at: string | null
   is_admin: boolean
   is_active: boolean
+  access_status: AccessStatus
   features: Feature[]
+  subscription: Subscription | null
+  usage: FeatureUsage[]
+  grants: Grant[]
   usage_today: Partial<Record<Feature, number>>
 }
 
-export type AdminUserPatch = Partial<Pick<AdminUser, 'is_active' | 'is_admin' | 'features'>>
+export type AdminUserPatch = Partial<Pick<AdminUser, 'is_active' | 'is_admin'>>
+
+export interface FeatureTotal extends FeatureInfo {
+  feature: Feature
+  units: number
+  events: number
+  users: number
+}
+
+export interface UsageReport {
+  month: string
+  features: FeatureTotal[]
+  conversation_minutes: number
+  pronunciation_assessments: number
+  azure_free_hours: number
+  seconds_per_assessment_estimate: number
+  estimated_pronunciation_hours: number
+}
 
 export interface Option {
   value: string

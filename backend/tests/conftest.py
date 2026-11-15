@@ -35,21 +35,27 @@ def app_client(fake_ai: FakeAI) -> Iterator[TestClient]:
     global _shared
     with TestClient(app) as c:
         _shared = c
-        grant_new_users(ALL_FEATURES)  # most tests want usable accounts; access tests change this
+        grant_new_users(TEST_PLAN)  # most tests want usable accounts; access tests change this
         new_user_client("owner@example.com", "Owner")  # the first account becomes admin: keep it out of tests
         yield c
 
 
 COOKIE = "et_session"
 ALL_FEATURES = ["conversation", "vocabulary", "grammar", "writing", "pronunciation"]
+TEST_PLAN = "friends"  # seeded by the migration: every feature, (almost) no limits
+
+
+def _db():  # noqa: ANN202
+    import sqlite3
+
+    return sqlite3.connect(_tmp / "test.db")
 
 
 def set_system(**values: object) -> None:
     """Write admin system settings straight into the test DB (as an admin would via the panel)."""
     import json
-    import sqlite3
 
-    db = sqlite3.connect(_tmp / "test.db")
+    db = _db()
     row = db.execute("SELECT value FROM app_settings WHERE key = 'system'").fetchone()
     data = {**(json.loads(row[0]) if row else {}), **values}
     db.execute(
@@ -61,16 +67,42 @@ def set_system(**values: object) -> None:
 
 
 def make_admin(email: str) -> None:
-    import sqlite3
-
-    db = sqlite3.connect(_tmp / "test.db")
+    db = _db()
     db.execute("UPDATE users SET is_admin = 1 WHERE email = ?", (email.lower(),))
     db.commit()
     db.close()
 
 
-def grant_new_users(features: list[str]) -> None:
-    set_system(default_features=features)
+def grant_new_users(plan_code: str | None) -> None:
+    """New accounts start on this plan (None = they wait for an admin to choose one)."""
+    db = _db()
+    db.execute("UPDATE plans SET is_default_for_new = (code = ?)", (plan_code or "",))
+    db.commit()
+    db.close()
+
+
+def set_plan(code: str, **values: object) -> None:
+    """Change columns of a seeded plan (JSON columns as dict / list)."""
+    import json
+
+    db = _db()
+    for key, value in values.items():
+        stored = json.dumps(value) if isinstance(value, (dict, list)) else value
+        db.execute(f"UPDATE plans SET {key} = ? WHERE code = ?", (stored, code))  # noqa: S608 (test helper)
+    db.commit()
+    db.close()
+
+
+def expire_subscription(email: str) -> None:
+    """Move the user's active subscription's expiry into the past (status stays 'active': expired lazily)."""
+    db = _db()
+    db.execute(
+        "UPDATE subscriptions SET expires_at = '2000-01-01 00:00:00' WHERE status = 'active'"
+        " AND user_id = (SELECT id FROM users WHERE email = ?)",
+        (email.lower(),),
+    )
+    db.commit()
+    db.close()
 
 
 _shared: TestClient | None = None

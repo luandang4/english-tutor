@@ -4,10 +4,9 @@ from fastapi import APIRouter, HTTPException, Request, Response, status
 
 from app.api.deps import CurrentUser, SessionDep
 from app.core.config import get_settings
-from app.core.constants import FEATURE_INFO
 from app.models.user import User
-from app.schemas.api import FeatureUsage, LoginIn, PasswordChangeIn, RegisterIn, UserOut
-from app.services import access, auth
+from app.schemas.api import FeatureUsage, LoginIn, PasswordChangeIn, PlanBrief, RegisterIn, UserOut
+from app.services import access, auth, plans
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -26,15 +25,21 @@ def _set_cookie(response: Response, token: str) -> None:
 
 
 async def _user_out(session: SessionDep, user: User) -> UserOut:
-    features = access.effective_features(user, await access.get_system(session))
+    system = await access.get_system(session)
+    ent = await access.entitlement(session, user)
+    sub = ent.subscription
     return UserOut(
         id=user.id,
         email=user.email,
         display_name=user.display_name,
         created_at=user.created_at,
         is_admin=user.is_admin,
-        features=features,
-        pending=not user.is_admin and not user.features,
+        features=access.features_for(ent, system),
+        view_features=access.view_features_for(ent),
+        pending=ent.status == "pending",
+        access_status=ent.status,
+        plan=PlanBrief(code=sub.plan.code, name=sub.plan.name, expires_at=sub.expires_at) if sub else None,
+        upgrade_contact=system.upgrade_contact,
     )
 
 
@@ -83,14 +88,9 @@ async def me(user: CurrentUser, session: SessionDep) -> UserOut:
 
 @router.get("/me/usage", response_model=list[FeatureUsage])
 async def my_usage(user: CurrentUser, session: SessionDep) -> list[FeatureUsage]:
-    """Today's usage and daily limit for each feature the user may use."""
-    system = await access.get_system(session)
-    out = []
-    for feature in access.effective_features(user, system):
-        limit = None if user.is_admin or not system.daily_limits.get(feature) else system.daily_limits[feature]
-        used = await access.usage_today(session, user.id, feature)
-        out.append(FeatureUsage(feature=feature, used=used, limit=limit, **FEATURE_INFO[feature]))
-    return out
+    """Today's and this month's usage against the plan's limits, for each feature the user may use."""
+    _, quotas = await access.quotas_for(session, user)
+    return [plans.feature_usage(q) for q in quotas]
 
 
 @router.post("/password", status_code=status.HTTP_204_NO_CONTENT)

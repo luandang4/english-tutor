@@ -32,19 +32,28 @@ async def get_admin_user(user: CurrentUser) -> User:
 AdminUser = Annotated[User, Depends(get_admin_user)]
 
 
-def require_feature(feature: str):  # noqa: ANN201
-    """Router / route dependency: the whole endpoint belongs to a feature the user must be allowed to use."""
+VIEW_METHODS = frozenset({"GET", "HEAD", "DELETE"})
 
-    async def check(user: CurrentUser, session: SessionDep) -> None:
-        await access.ensure_feature(session, user, feature)
+
+def require_feature(feature: str):  # noqa: ANN201
+    """Router / route dependency: the whole endpoint belongs to a feature. Reading or deleting one's own past
+    work (GET / HEAD / DELETE) only needs view access, so it keeps working after a plan expires; anything
+    else needs the feature in an active plan. Routes that spend AI quota also call `access.ensure_quota`."""
+
+    async def check(request: Request, user: CurrentUser, session: SessionDep) -> None:
+        if request.method in VIEW_METHODS:
+            await access.ensure_view(session, user, feature)
+        else:
+            await access.ensure_feature(session, user, feature)
 
     return Depends(check)
 
 
 async def require_any_feature(user: CurrentUser, session: SessionDep) -> None:
-    """For shared helpers (e.g. pronunciation audio): any approved account, not one waiting for approval."""
+    """For free shared helpers (e.g. word audio): any approved account (also with an expired plan, so vocabulary
+    review keeps working), not one waiting for approval."""
     if not await access.has_any_feature(session, user):
-        raise HTTPException(status_code=403, detail="Tài khoản của bạn đang chờ admin cấp quyền.")
+        raise HTTPException(status_code=403, detail="Tài khoản của bạn đang chờ admin duyệt và chọn gói.")
 
 
 async def get_or_404(session: AsyncSession, model: type[M], id_: int, what: str = "Bản ghi") -> M:

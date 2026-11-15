@@ -18,15 +18,19 @@ router = APIRouter(prefix="/lessons", tags=["lessons"])
 LESSON_SKILLS = (Skill.VOCABULARY, Skill.GRAMMAR)
 
 
-async def _allowed_skills(session: AsyncSession, user: User) -> list[str]:
-    allowed = access.effective_features(user, await access.get_system(session))
+async def _viewable_skills(session: AsyncSession, user: User) -> list[str]:
+    allowed = await access.viewable_features(session, user)
     return [s.value for s in LESSON_SKILLS if s.value in allowed]
 
 
-async def _owned_lesson(session: AsyncSession, lesson_id: int, user: User) -> Lesson:
-    """The user's lesson, and the user may use that lesson's skill (vocabulary / grammar)."""
+async def _owned_lesson(session: AsyncSession, lesson_id: int, user: User, *, view_only: bool = False) -> Lesson:
+    """The user's lesson, and the user may use that lesson's skill (vocabulary / grammar). `view_only`: reading /
+    deleting past work, which still works after the plan expired."""
     lesson = await get_owned(session, Lesson, lesson_id, user, "Bài học")
-    await access.ensure_feature(session, user, lesson.skill)
+    if view_only:
+        await access.ensure_view(session, user, lesson.skill)
+    else:
+        await access.ensure_feature(session, user, lesson.skill)
     return lesson
 
 
@@ -53,8 +57,8 @@ async def list_lessons(
     session: SessionDep, user: CurrentUser, skill: Skill | None = None, limit: int = 50
 ) -> list[LessonSummary]:
     if skill:
-        await access.ensure_feature(session, user, skill)
-    allowed = [s for s in (await _allowed_skills(session, user)) if skill in (None, s)]
+        await access.ensure_view(session, user, skill)
+    allowed = [s for s in (await _viewable_skills(session, user)) if skill in (None, s)]
     q = (
         select(Lesson)
         .where(Lesson.user_id == user.id, Lesson.skill.in_(allowed))
@@ -66,7 +70,7 @@ async def list_lessons(
 
 @router.get("/{lesson_id}", response_model=LessonDetail)
 async def get_lesson(lesson_id: int, session: SessionDep, user: CurrentUser) -> LessonDetail:
-    lesson = await _owned_lesson(session, lesson_id, user)
+    lesson = await _owned_lesson(session, lesson_id, user, view_only=True)
     return await svc.lesson_detail(session, lesson)
 
 
@@ -83,7 +87,7 @@ async def retry_lesson(lesson_id: int, session: SessionDep, user: CurrentUser) -
 
 @router.delete("/{lesson_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_lesson(lesson_id: int, session: SessionDep, user: CurrentUser) -> Response:
-    lesson = await _owned_lesson(session, lesson_id, user)
+    lesson = await _owned_lesson(session, lesson_id, user, view_only=True)
     await session.delete(lesson)
     await session.flush()
     await topics.delete_custom_topic_if_unused(session, lesson.topic_id)

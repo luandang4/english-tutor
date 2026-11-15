@@ -10,10 +10,13 @@ import type {
   ConversationSummary,
   DeckStats,
   FeatureUsage,
+  GrantInput,
   LessonDetail,
   LessonSummary,
   Level,
   Meta,
+  Plan,
+  PlanInput,
   Progress,
   PronunciationResult,
   Skill,
@@ -21,6 +24,7 @@ import type {
   SystemSettings,
   Topic,
   TopicChoice,
+  UsageReport,
   User,
   WritingTaskDetail,
   WritingTaskSummary,
@@ -44,6 +48,8 @@ export const keys = {
   usage: ['usage'] as const,
   adminSystem: ['admin', 'system'] as const,
   adminUsers: ['admin', 'users'] as const,
+  adminPlans: ['admin', 'plans'] as const,
+  adminUsage: ['admin', 'usage'] as const,
 }
 
 // ---------- auth ----------
@@ -367,4 +373,65 @@ export function useUpdateUser() {
       qc.invalidateQueries({ queryKey: keys.me })
     },
   })
+}
+
+export const useAdminPlans = () =>
+  useQuery({ queryKey: keys.adminPlans, queryFn: () => api.get<Plan[]>('/admin/plans') })
+
+export const useAdminUsage = () =>
+  useQuery({ queryKey: keys.adminUsage, queryFn: () => api.get<UsageReport>('/admin/usage') })
+
+export function useSavePlan() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, plan }: { id: number | null; plan: PlanInput }) =>
+      id == null ? api.post<Plan>('/admin/plans', plan) : api.put<Plan>(`/admin/plans/${id}`, plan),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: keys.adminPlans })
+      // a plan's features / limits change what its users may do
+      qc.invalidateQueries({ queryKey: keys.adminUsers })
+      qc.invalidateQueries({ queryKey: keys.me })
+      qc.invalidateQueries({ queryKey: keys.usage })
+    },
+  })
+}
+
+/** Plan / expiry / bonus changes for one user; each answers with the updated admin row. */
+export function useUserPlanActions() {
+  const qc = useQueryClient()
+  const onSuccess = (user: AdminUser) => {
+    qc.setQueryData<AdminUser[]>(keys.adminUsers, (list) => list?.map((u) => (u.id === user.id ? user : u)))
+    qc.invalidateQueries({ queryKey: keys.adminPlans })
+    qc.invalidateQueries({ queryKey: keys.me })
+    qc.invalidateQueries({ queryKey: keys.usage })
+  }
+  const assign = useMutation({
+    mutationFn: (v: { id: number; plan_id: number; expires_at: string | null; note: string }) =>
+      api.put<AdminUser>(`/admin/users/${v.id}/subscription`, {
+        plan_id: v.plan_id,
+        expires_at: v.expires_at,
+        note: v.note,
+      }),
+    onSuccess,
+  })
+  const cancel = useMutation({
+    mutationFn: (id: number) => api.del(`/admin/users/${id}/subscription`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: keys.adminUsers })
+      qc.invalidateQueries({ queryKey: keys.adminPlans })
+    },
+  })
+  const grant = useMutation({
+    mutationFn: ({ id, body }: { id: number; body: GrantInput }) =>
+      api.post<AdminUser>(`/admin/users/${id}/grants`, body),
+    onSuccess,
+  })
+  const removeGrant = useMutation({
+    mutationFn: (grantId: number) => api.del(`/admin/grants/${grantId}`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: keys.adminUsers })
+      qc.invalidateQueries({ queryKey: keys.usage })
+    },
+  })
+  return { assign, cancel, grant, removeGrant }
 }

@@ -4,6 +4,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useChangePassword, useLogout, useMe } from '../../api/hooks'
 import { AudioSourceSelect, ErrorBox, Icon, PageHeader, PasswordInput, Spinner, SpeakButton } from '../../components/ui'
 import { passwordStrongEnough } from '../../lib/password'
+import { MyPlan } from './MyPlan'
 import './auth.css'
 
 export function AccountPage() {
@@ -34,6 +35,8 @@ export function AccountPage() {
           <Icon name="arrowRight" size={16} /> Đăng xuất
         </button>
       </div>
+
+      <MyPlan />
 
       {me.is_admin && (
         <Link to="/admin" className="card row admin-link">

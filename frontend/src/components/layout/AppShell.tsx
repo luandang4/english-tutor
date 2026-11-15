@@ -2,7 +2,7 @@ import { Link, Navigate, NavLink, Outlet, useLocation } from 'react-router-dom'
 
 import { useDeckStats, useMe } from '../../api/hooks'
 import type { Feature } from '../../api/types'
-import { useAccess } from '../../lib/access'
+import { contactText, useAccess } from '../../lib/access'
 import '../../features/auth/auth.css'
 import { Loading } from '../ui'
 import { Icon, type IconName } from '../ui/Icon'
@@ -83,9 +83,15 @@ export function AppShell() {
         <main className="main">
           {me.pending && (
             <div className="pending-banner">
-              <Icon name="lock" size={16} /> Tài khoản đang chờ admin duyệt. Các tính năng học sẽ mở sau khi được cấp
-              quyền.
+              <Icon name="lock" size={16} /> Tài khoản đang chờ admin duyệt và chọn gói. Các tính năng học sẽ mở sau
+              khi được duyệt. {contactText(me.upgrade_contact)}
             </div>
+          )}
+          {me.access_status === 'expired' && (
+            <Link to="/account" className="pending-banner">
+              <Icon name="lock" size={16} /> Gói {me.plan?.name ?? ''} đã hết hạn: các tính năng AI tạm khoá, bạn vẫn ôn
+              từ vựng và xem lại bài cũ được. {contactText(me.upgrade_contact)}
+            </Link>
           )}
           <Outlet />
         </main>

@@ -20,11 +20,12 @@ from app.core.security import (
 from app.db.base import utcnow
 from app.models.conversation import ConversationSession
 from app.models.lesson import Lesson
+from app.models.plan import Plan
 from app.models.pronunciation import PronunciationAttempt
 from app.models.user import AuthSession, User
 from app.models.vocab import VocabCard
 from app.models.writing import WritingTask
-from app.services import access
+from app.services import access, plans
 
 OWNED_MODELS = (Lesson, WritingTask, VocabCard, ConversationSession, PronunciationAttempt)
 
@@ -45,36 +46,53 @@ def normalize_email(email: str) -> str:
 
 
 async def register(session: AsyncSession, *, email: str, password: str, display_name: str) -> User:
-    """Self-service sign-up from the web. New accounts get the admin's default features (none = wait for
-    approval), so open sign-up cannot be used to spend AI quota."""
+    """Self-service sign-up from the web. New accounts get the plan marked "default for new accounts" (none by
+    default = wait for an admin to choose a plan), so open sign-up cannot be used to spend AI quota."""
     if not await access.registration_open(session):
         raise AuthError("Đăng ký tài khoản mới đang tắt.", 403)
     return await create_user(session, email=email, password=password, display_name=display_name)
 
 
 async def create_user(
-    session: AsyncSession, *, email: str, password: str, display_name: str, admin: bool = False
+    session: AsyncSession,
+    *,
+    email: str,
+    password: str,
+    display_name: str,
+    admin: bool = False,
+    plan_code: str | None = None,
 ) -> User:
-    """Create an account (also used by scripts/create_user.py). The very first account becomes admin."""
+    """Create an account (also used by scripts/create_user.py). The very first account becomes admin.
+    `plan_code` puts the account on that plan right away; otherwise the default plan for new accounts (if any)."""
     check_password_strength(password)
     email = normalize_email(email)
     if await session.scalar(select(User.id).where(User.email == email)):
         raise AuthError("Email này đã được đăng ký.", 409)
+    plan = await _initial_plan(session, plan_code)
     is_first = not await session.scalar(select(User.id).limit(1))
-    is_admin = admin or is_first
     user = User(
         email=email,
         display_name=display_name.strip(),
         password_hash=hash_password(password),
-        is_admin=is_admin,
-        features=access.ALL_FEATURES if is_admin else (await access.get_system(session)).default_features,
+        is_admin=admin or is_first,
     )
     session.add(user)
     await session.flush()
+    if plan is not None:
+        await plans.subscribe(session, user, plan, expires_at=plans.default_expiry(plan))
     if is_first:
         await _claim_unowned_data(session, user.id)
     await session.commit()
     return user
+
+
+async def _initial_plan(session: AsyncSession, plan_code: str | None) -> Plan | None:
+    if plan_code is None:
+        return await plans.default_plan_for_new(session)
+    plan = await session.scalar(select(Plan).where(Plan.code == plan_code))
+    if plan is None or not plan.is_active:
+        raise AuthError(f"Gói '{plan_code}' không tồn tại hoặc đã ngừng.", 404)
+    return plan
 
 
 async def _claim_unowned_data(session: AsyncSession, user_id: int) -> None:

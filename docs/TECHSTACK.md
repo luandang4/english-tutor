@@ -105,31 +105,47 @@ task that uses them (`services/topics.py`).
   the server sends `{"type": "translation"}` to the UI (dashed bubble, saved in the transcript as role
   `translation`), then she repeats in simpler English. Text only, so it applies at every level.
 
-## Admin, permissions & daily limits
+## Admin, plans & limits
 
 Anything that spends AI quota is a **feature**: `conversation`, `vocabulary`, `grammar`, `writing`
-(Gemini) and `pronunciation` (Azure). `services/access.py` decides access; a feature is usable when:
+(Gemini) and `pronunciation` (Azure). Users get features through a **plan** (`plans` table: features, limits
+per feature `{daily, monthly}` with 0 = unlimited, minutes per conversation session, default duration, price
+label / billing cycle for display only). A `subscriptions` row puts a user on a plan (start, expiry or none,
+status `active` / `expired` / `cancelled`, note, `assigned_by`, `source` admin | payment); history is kept and
+at most one row per user is active. `usage_grants` add bonus allowance for one user (this month, or one day).
+Starter plans (seeded by migration): Dùng thử, Cơ bản, Nâng cao, Bạn bè.
+
+`services/access.py` decides access; a feature is usable when:
 
 1. the account is active (locked accounts are signed out everywhere and cannot log in),
 2. the feature is switched on system-wide (admin kill switch; applies to admins too),
-3. the user was granted it (admins have every feature),
-4. today's usage is under the daily limit (per user, admins exempt; conversation in minutes, the rest in
-   AI requests; day boundary in `TIMEZONE`).
+3. admins: allowed, unlimited; others: an active, unexpired subscription whose plan includes the feature
+   (expiry is checked lazily and the row is marked `expired`),
+4. today's usage is under the plan's daily limit, and this calendar month's under the monthly limit (plus
+   bonus grants; conversation in minutes, the rest in AI requests; day / month boundary in `TIMEZONE`).
+
+With an expired plan the AI features are locked, but vocabulary review and opening one's own old lessons /
+tasks / conversations still work (`ensure_view`; `require_feature` treats GET / DELETE as view access).
 
 **Enforced by the API, not the UI.** Routers depend on `require_feature(...)`; actions that call an AI also
 run `access.ensure_quota()` + `record_usage()` (`usage_events` table). The conversation WebSocket checks the
-feature and caps the session at the minutes left today; live pronunciation scoring checks the pronunciation
-feature and its limit per turn. `/api/tts` needs an approved account. Denials are `403` (not allowed /
-switched off) or `429` (daily limit). The frontend hides or locks what `me.features` does not include
-(`FeatureGate`, nav lock icons), but a hand-crafted request gets the same 403 / 429.
+feature and caps the session at min(plan minutes per session or `MAX_LIVE_SESSION_MINUTES`, minutes left today
+/ this month); live pronunciation scoring checks the pronunciation feature and its limit per turn. `/api/tts`
+needs an approved account (active or expired plan). Denials are `403` (not allowed / pending / expired /
+switched off) or `429` (daily or monthly limit), with the admin's `upgrade_contact` text appended. The frontend
+hides or locks what `me.features` does not include (`FeatureGate`, nav lock icons), but a hand-crafted request
+gets the same 403 / 429.
 
-- System settings live in `app_settings` (key `system`): `features_enabled`, `daily_limits`,
-  `registration_open`, `default_features` (granted to new sign-ups; empty = **wait for admin approval**).
-- Web sign-up is controlled only by the admin switch (`registration_open`), no `.env` setting.
-- The first account ever created becomes admin; `deploy/create-user.sh EMAIL "Name" [--admin]` adds accounts
-  from the command line. Admins cannot lock or demote themselves (there is always one admin).
-- Admin UI: `/admin` (system switches + limits, users with grants / lock / admin, today's usage).
-- Learners see today's usage vs limits on the dashboard (`GET /api/auth/me/usage`).
+- System settings live in `app_settings` (key `system`): `features_enabled`, `registration_open`,
+  `upgrade_contact`.
+- Web sign-up is controlled only by the admin switch (`registration_open`). New accounts **wait for an admin to
+  choose a plan**, unless a plan is marked "default for new accounts".
+- The first account ever created becomes admin; `deploy/create-user.sh EMAIL "Name" [--admin] [--plan CODE]`
+  adds accounts from the command line. Admins cannot lock or demote themselves (there is always one admin).
+- Admin UI `/admin`: tabs Người dùng (approve = choose plan, expiry, bonus, lock / admin, usage bars, filters),
+  Gói (create / edit / deactivate plans), Sử dụng (this month's totals vs the Azure free tier), Hệ thống.
+- Learners see their plan and day / month usage on the Account page and dashboard (`GET /api/auth/me/usage`);
+  the dashboard reminds them 3 days before expiry.
 - Passwords: at least 8 characters with a letter and a digit (`core/security.py: password_problem`, same rules
   shown live under the password field).
 

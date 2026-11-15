@@ -2,9 +2,10 @@ import { Link } from 'react-router-dom'
 
 import { useMe, useProgress, useUsage } from '../../api/hooks'
 import type { Feature } from '../../api/types'
-import { useAccess } from '../../lib/access'
+import { contactText, daysLeft, formatDate, useAccess } from '../../lib/access'
 import type { Skill } from '../../api/types'
-import { ErrorBox, Icon, Loading, ProgressBar, type IconName } from '../../components/ui'
+import { ErrorBox, Icon, Loading, type IconName } from '../../components/ui'
+import { UsageBars } from '../../components/ui/UsageBars'
 import { SKILL_LABEL, scoreTone, timeAgo } from '../../lib/format'
 
 const QUICK: { to: string; icon: IconName; title: string; text: string; color: string; feature: Feature }[] = [
@@ -66,6 +67,7 @@ export function DashboardPage() {
         ))}
       </div>
 
+      <ExpiryReminder />
       <UsageToday />
 
       {isPending ? (
@@ -174,33 +176,35 @@ export function DashboardPage() {
   )
 }
 
-/** Today's use of each feature against the admin's daily limit. */
+/** Shown on the home page when the plan expires within 3 days. */
+function ExpiryReminder() {
+  const { plan, contact, expired } = useAccess()
+  const left = daysLeft(plan?.expires_at)
+  if (!plan?.expires_at || expired || left == null || left > 3) return null
+  return (
+    <Link to="/account" className="alert info row">
+      <Icon name="lock" />
+      <span className="spacer">
+        Gói <b>{plan.name}</b> {left === 0 ? 'hết hạn hôm nay' : `còn ${left} ngày`} (đến {formatDate(plan.expires_at)}).{' '}
+        {contactText(contact)}
+      </span>
+      <Icon name="arrowRight" />
+    </Link>
+  )
+}
+
+/** Today's and this month's use of each feature against the plan's limits. */
 function UsageToday() {
   const { data } = useUsage()
-  const limited = (data ?? []).filter((u) => u.limit != null)
+  const limited = (data ?? []).filter((u) => u.limit != null || u.limit_month != null)
   if (!limited.length) return null
   return (
     <section className="card usage-today">
       <div className="card-title">
-        <h3>Lượt dùng hôm nay</h3>
-        <span className="small muted">Làm mới lúc 0h mỗi ngày</span>
+        <h3>Lượt dùng của bạn</h3>
+        <span className="small muted">Lượt ngày mở lại lúc 0h, lượt tháng mở lại ngày 1</span>
       </div>
-      <div className="usage-grid">
-        {limited.map((u) => {
-          const pct = Math.min(100, (u.used / (u.limit || 1)) * 100)
-          return (
-            <div key={u.feature} className="usage-item">
-              <div className="row small">
-                <span className="spacer">{u.label}</span>
-                <b className={pct >= 100 ? 'tone-low' : ''}>
-                  {u.used}/{u.limit} {u.unit}
-                </b>
-              </div>
-              <ProgressBar value={pct} />
-            </div>
-          )
-        })}
-      </div>
+      <UsageBars usage={limited} />
     </section>
   )
 }
