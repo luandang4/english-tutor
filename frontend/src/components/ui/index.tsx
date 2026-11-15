@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 
 import { useMeta } from '../../api/hooks'
 import type { LessonStatus, Level } from '../../api/types'
-import { playText } from '../../lib/audio/tts'
+import { playLongText } from '../../lib/audio/tts'
 import { AUDIO_SOURCES, useAudioSource, type AudioSource } from '../../lib/preferences'
 import { STATUS_LABEL, scoreTone } from '../../lib/format'
 import { Icon } from './Icon'
@@ -147,22 +147,23 @@ export function AudioSourceSelect() {
 }
 
 /** Play English audio (free TTS sources, see AudioSourceSelect). */
-export function SpeakButton({ text, label = 'Nghe' }: { text: string; label?: string }) {
+export function SpeakButton({ text, label = 'Nghe', children }: { text: string; label?: string; children?: ReactNode }) {
   const [state, setState] = useState<'idle' | 'loading' | 'error'>('idle')
   return (
     <button
       type="button"
-      className="btn icon sm ghost"
+      className={children ? 'btn sm ghost' : 'btn icon sm ghost'}
       title={state === 'error' ? 'Không phát được âm thanh' : label}
       aria-label={label}
       onClick={() => {
         setState('loading')
-        playText(text)
+        playLongText(text)
           .then(() => setState('idle'))
           .catch(() => setState('error'))
       }}
     >
       {state === 'loading' ? <Spinner small /> : <Icon name="volume" />}
+      {children}
     </button>
   )
 }

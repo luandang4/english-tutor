@@ -159,9 +159,24 @@ export interface Option {
   label: string
 }
 
+export interface Phrase {
+  en: string
+  vi: string
+}
+
+/** Preset conversation scenario (services/conversation/scenarios.py). */
+export interface ScenarioOption extends Option {
+  group: string
+  goal_vi: string
+  emma_role_vi: string
+  learner_role_vi: string
+  phrases_basic: Phrase[] // A1–A2
+  phrases_advanced: Phrase[] // B1+
+}
+
 export interface Meta {
   levels: Option[]
-  scenarios: Option[]
+  scenarios: ScenarioOption[]
   features: FeatureInfo[]
   pronunciation_enabled: boolean
   registration_open: boolean
@@ -521,11 +536,37 @@ export interface TurnPronunciation {
   weak_words: { word: string; score: number; error_type: string }[]
 }
 
-export interface ConversationTurn {
-  role: 'user' | 'tutor' | 'translation' // translation: Vietnamese Emma shows when the learner didn't understand
-  text: string
-  source?: string // translation only: the English it translates
-  pronunciation?: TurnPronunciation
+export interface HintKeyword {
+  en: string
+  vi?: string // A1–B1 only
+}
+
+export type FeedbackKind = 'correction' | 'upgrade'
+
+/** One saved transcript turn (services/conversation/transcript.py). Cards are Emma's on-screen function calls. */
+export type ConversationTurn =
+  | { role: 'user' | 'tutor'; text: string; pronunciation?: TurnPronunciation }
+  // Vietnamese Emma shows when the learner didn't understand; source = the English it translates
+  | { role: 'translation'; text: string; source?: string }
+  // Correction or "say it better" under the learner's sentence; text = better
+  | { role: 'feedback'; text: string; kind: FeedbackKind; original?: string; better: string; explain_vi?: string }
+  // "How to answer" card; text = question_en
+  | {
+      role: 'hint'
+      text: string
+      question_en?: string
+      question_vi?: string // A1–B1 only
+      frames: string[]
+      keywords: HintKeyword[]
+    }
+
+export type FeedbackTurn = Extract<ConversationTurn, { role: 'feedback' }>
+export type HintTurn = Extract<ConversationTurn, { role: 'hint' }>
+
+export interface TranslateResult {
+  vietnamese: string
+  ipa: string
+  part_of_speech: string
 }
 
 export interface ConversationDetail extends ConversationSummary {

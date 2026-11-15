@@ -1,23 +1,48 @@
 // Voice conversation client: mic (AudioWorklet, PCM16 16 kHz) -> /ws/conversation -> Gemini Live
 // -> PCM16 24 kHz -> speakers. Both directions also feed AnalyserNodes for the orb visualizer.
 
-import type { TurnPronunciation } from '../../api/types'
+import type { FeedbackKind, HintKeyword, TurnPronunciation } from '../../api/types'
 
 const OUT_RATE = 24_000
+
+export type Enhancement = 'low' | 'medium' | 'high'
 
 export interface LiveSettings {
   level: string
   scenario: string
+  enhancement: Enhancement
   custom_title?: string
   custom_request?: string
 }
 
+/** Quick-help buttons (and the silence timer); the server maps each to a fixed instruction for Emma. */
+export type LiveAction = 'hint' | 'auto_hint' | 'translate' | 'repeat' | 'slower'
+
+export interface FeedbackCard {
+  kind: FeedbackKind
+  original: string
+  better: string
+  explain_vi: string
+}
+
+export interface HintCard {
+  question_en: string
+  question_vi: string
+  frames: string[]
+  keywords: HintKeyword[]
+}
+
 export interface LiveCallbacks {
   onReady?: (sessionId: number) => void
+  onLimits?: (secondsLeft: number) => void
+  onWrapUp?: (secondsLeft: number) => void
+  onSessionEnd?: (reason: string) => void
   onTranscript?: (role: 'user' | 'tutor', text: string) => void
   onTurnEnd?: () => void
   onPronunciation?: (result: TurnPronunciation) => void
   onTranslation?: (english: string, vietnamese: string) => void
+  onFeedback?: (card: FeedbackCard) => void
+  onHint?: (card: HintCard) => void
   onInterrupted?: () => void
   onError?: (message: string) => void
   onClosed?: () => void
@@ -90,6 +115,13 @@ export class LiveSession {
     this.ws.send(JSON.stringify({ type: 'text', text }))
   }
 
+  /** Quick-help signal. `auto_hint` keeps Emma's current audio; buttons cut it so she answers right away. */
+  sendAction(action: LiveAction): void {
+    if (this.ws?.readyState !== WebSocket.OPEN) return
+    if (action !== 'auto_hint') this.stopPlayback()
+    this.ws.send(JSON.stringify({ type: 'action', action }))
+  }
+
   stop(): void {
     if (this.closed) return
     this.closed = true
@@ -133,6 +165,21 @@ export class LiveSession {
         break
       case 'translation':
         this.cb.onTranslation?.(msg.english, msg.vietnamese)
+        break
+      case 'feedback':
+        this.cb.onFeedback?.(msg as FeedbackCard)
+        break
+      case 'hint':
+        this.cb.onHint?.(msg as HintCard)
+        break
+      case 'limits':
+        this.cb.onLimits?.(msg.seconds_left)
+        break
+      case 'wrap_up':
+        this.cb.onWrapUp?.(msg.seconds_left)
+        break
+      case 'session_end':
+        this.cb.onSessionEnd?.(msg.reason)
         break
       case 'turn_complete':
         this.cb.onTurnEnd?.()

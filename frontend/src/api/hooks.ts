@@ -34,6 +34,7 @@ import type {
   SystemSettings,
   Topic,
   TopicChoice,
+  TranslateResult,
   UsageReport,
   User,
   WritingTaskDetail,
@@ -436,6 +437,16 @@ export const useConversations = () =>
 
 export const useConversation = (id: number) =>
   useQuery({ queryKey: keys.conversation(id), queryFn: () => api.get<ConversationDetail>(`/conversations/${id}`) })
+
+/** Vietnamese for one of Emma's sentences, or one word in it (fetched on demand, cached for the session). */
+export const useTranslate = (text: string, mode: 'sentence' | 'word', context = '', enabled = true) =>
+  useQuery({
+    queryKey: ['translate', mode, text, context] as const,
+    queryFn: () => api.post<TranslateResult>('/conversations/translate', { text, mode, context }),
+    enabled,
+    staleTime: Infinity,
+    retry: false,
+  })
 
 export function useDeleteConversation() {
   const qc = useQueryClient()

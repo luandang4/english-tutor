@@ -52,3 +52,28 @@ export async function playWordUrl(path: string): Promise<void> {
   if (!(await playUrl(`${path}${sep}source=${getAudioSource()}&v=${AUDIO_VERSION}`)))
     throw new Error('Không phát được âm thanh.')
 }
+
+const MAX_CHUNK = 280 // the server's TTS takes at most 300 characters per request
+let generation = 0
+
+/** Split text into sentence groups the server can synthesize; drops "…" placeholders of sentence frames. */
+export function speechChunks(text: string): string[] {
+  const clean = text.replace(/\s*(…|\.\.\.)\s*/g, ' ').replace(/\s+/g, ' ').trim()
+  const sentences = clean.match(/[^.!?]+[.!?]*/g) ?? []
+  const chunks: string[] = []
+  for (const s of sentences.map((x) => x.trim()).filter(Boolean)) {
+    const last = chunks.at(-1)
+    if (last && last.length + s.length + 1 <= MAX_CHUNK) chunks[chunks.length - 1] = `${last} ${s}`
+    else chunks.push(s.slice(0, MAX_CHUNK))
+  }
+  return chunks
+}
+
+/** Play text of any length, sentence group by group. A newer call stops an older one. */
+export async function playLongText(text: string): Promise<void> {
+  const mine = ++generation
+  for (const chunk of speechChunks(text)) {
+    if (mine !== generation) return
+    await playText(chunk)
+  }
+}

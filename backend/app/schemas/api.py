@@ -200,9 +200,23 @@ class FeatureInfo(BaseModel):
     unit: str
 
 
+class PhraseOut(BaseModel):
+    en: str
+    vi: str
+
+
+class ScenarioOption(Option):
+    group: str
+    goal_vi: str
+    emma_role_vi: str
+    learner_role_vi: str
+    phrases_basic: list[PhraseOut]  # A1–A2
+    phrases_advanced: list[PhraseOut]  # B1+
+
+
 class MetaOut(BaseModel):
     levels: list[Option]
-    scenarios: list[Option]
+    scenarios: list[ScenarioOption]
     features: list[FeatureInfo]
     pronunciation_enabled: bool
     registration_open: bool
@@ -567,6 +581,18 @@ class ConversationSummary(ORM):
 
 class ConversationDetail(ConversationSummary):
     transcript: list[dict[str, Any]]
+
+
+class TranslateIn(BaseModel):
+    text: str = Field(min_length=1, max_length=600)
+    mode: Literal["sentence", "word"] = "sentence"
+    context: str = Field("", max_length=1000)  # word mode: the sentence the word appeared in
+
+
+class TranslateOut(BaseModel):
+    vietnamese: str
+    ipa: str = ""
+    part_of_speech: str = ""
 
 
 # ---------- progress ----------

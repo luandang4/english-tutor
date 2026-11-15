@@ -2,17 +2,26 @@
 
 Browser <-> /ws/conversation protocol
   client -> server
-    text   {"type": "start", "level": "B1", "scenario": "free_talk"}  (first message)
+    text   {"type": "start", "level": "B1", "scenario": "free_talk", "enhancement": "low"|"medium"|"high"}
+           (first message; custom scenario adds "custom_title", "custom_request")
     binary PCM16 mono 16 kHz mic audio
     text   {"type": "text", "text": "..."}   typed message
+    text   {"type": "action", "action": "hint"|"auto_hint"|"translate"|"repeat"|"slower"}
+           quick-help button / silence timer; mapped to a fixed instruction (services/conversation/actions.py)
     text   {"type": "stop"}
   server -> client
+    text   {"type": "ready", "session_id": int}
+           {"type": "limits", "seconds_left": int}   (right after ready: time left in this session)
+           {"type": "wrap_up", "seconds_left": int}  (2 minutes left: Emma was told to wrap up)
+           {"type": "session_end", "reason": "time_limit"}  (session limit reached; the socket closes next)
+    text   {"type": "transcript", "role": "user"|"tutor", "text": "..."}
+           {"type": "interrupted"} | {"type": "turn_complete"} | {"type": "error", "message": "..."}
     text   {"type": "pronunciation", "text", "score", "accuracy", "fluency", "prosody", "weak_words": [...]}
            (Azure result for the learner's previous spoken turn; arrives shortly after the turn)
-    text   {"type": "translation", "english": "...", "vietnamese": "..."}
-           (Emma shows a Vietnamese translation when the learner did not understand her)
-    text   {"type": "ready", "session_id": int} | {"type": "transcript", "role": "user"|"tutor", "text": "..."}
-           {"type": "interrupted"} | {"type": "turn_complete"} | {"type": "error", "message": "..."}
+    text   on-screen cards from Emma's function calls (services/conversation/tools.py):
+           {"type": "translation", "english", "vietnamese"}
+           {"type": "feedback", "kind": "correction"|"upgrade", "original", "better", "explain_vi"}
+           {"type": "hint", "question_en", "question_vi", "frames": [...], "keywords": [{"en", "vi"}]}
     binary PCM16 mono 24 kHz tutor audio
 """
 
@@ -36,59 +45,17 @@ from app.models.conversation import ConversationSession
 from app.models.user import User
 from app.services import access, auth
 from app.services.ai.client import get_genai_client
-from app.services.conversation.live import (
-    INPUT_RATE,
-    OPENING_PROMPT,
-    VOICE,
-    LiveSettings,
-    live_config,
-    parse_translation,
-)
+from app.services.conversation.actions import MIN_ACTION_GAP_S, WRAP_UP_INSTRUCTION, action_instruction, wrap_up_delay
+from app.services.conversation.live import INPUT_RATE, OPENING_PROMPT, VOICE, LiveSettings, live_config
 from app.services.conversation.pronunciation import PronunciationCoach, TurnPronunciation
+from app.services.conversation.tools import parse_tool_call
+from app.services.conversation.transcript import Transcript
+
+__all__ = ["Transcript", "router"]
 
 log = logging.getLogger(__name__)
 router = APIRouter()
 _slots = asyncio.Semaphore(get_settings().max_concurrent_live_sessions)
-
-
-class Transcript:
-    """Merges streamed transcript fragments into turns."""
-
-    def __init__(self) -> None:
-        self.turns: list[dict[str, Any]] = []
-
-    def add(self, role: str, text: str) -> None:
-        if self.turns and self.turns[-1]["role"] == role and not self.turns[-1].get("closed"):
-            self.turns[-1]["text"] += text
-        else:
-            self.turns.append({"role": role, "text": text})
-
-    def add_translation(self, english: str, vietnamese: str) -> None:
-        self.close_turn()
-        self.turns.append({"role": "translation", "text": vietnamese, "source": english, "closed": True})
-
-    def close_turn(self) -> None:
-        if self.turns:
-            self.turns[-1]["closed"] = True
-
-    def last_user_index(self) -> int:
-        return next((i for i in range(len(self.turns) - 1, -1, -1) if self.turns[i]["role"] == "user"), -1)
-
-    def attach_pronunciation(self, index: int, data: dict[str, Any]) -> None:
-        if 0 <= index < len(self.turns):
-            self.turns[index]["pronunciation"] = data
-
-    def export(self) -> list[dict[str, Any]]:
-        out = []
-        for t in self.turns:
-            if text := t["text"].strip():
-                turn = {"role": t["role"], "text": text}
-                if "pronunciation" in t:
-                    turn["pronunciation"] = t["pronunciation"]
-                if t.get("source"):
-                    turn["source"] = t["source"]
-                out.append(turn)
-        return out
 
 
 def _origin_allowed(ws: WebSocket) -> bool:
@@ -180,6 +147,7 @@ async def _run_session(ws: WebSocket, settings: LiveSettings, user: User, limits
     coach = _pronunciation_coach(ws, inbox, transcript, user, limits.pronunciation)
     resume: dict[str, str | None] = {"handle": None}
     first = True
+    wrap_up: asyncio.Task | None = None
     try:
         async with asyncio.timeout(limits.max_seconds):
             while True:
@@ -189,6 +157,10 @@ async def _run_session(ws: WebSocket, settings: LiveSettings, user: User, limits
                     if first:
                         first = False
                         await ws.send_json({"type": "ready", "session_id": record_id})
+                        elapsed = time.monotonic() - started
+                        left = max(0, int(limits.max_seconds - elapsed))
+                        await ws.send_json({"type": "limits", "seconds_left": left})
+                        wrap_up = _schedule_wrap_up(ws, inbox, limits.max_seconds, elapsed)
                         await session.send_client_content(
                             turns=types.Content(role="user", parts=[types.Part(text=OPENING_PROMPT)]),
                             turn_complete=True,
@@ -196,7 +168,7 @@ async def _run_session(ws: WebSocket, settings: LiveSettings, user: User, limits
                     else:
                         log.info("conversation %s resumed Live session", record_id)
                     forward = asyncio.create_task(_forward(inbox, session, coach))
-                    relay = asyncio.create_task(_relay(ws, session, resume, transcript, coach))
+                    relay = asyncio.create_task(_relay(ws, session, resume, transcript, coach, settings.level))
                     done, pending = await asyncio.wait({forward, relay}, return_when=asyncio.FIRST_COMPLETED)
                     for t in pending:
                         t.cancel()
@@ -206,8 +178,8 @@ async def _run_session(ws: WebSocket, settings: LiveSettings, user: User, limits
                     if relay in done and relay.result() == "go_away" and resume["handle"]:
                         continue  # reconnect transparently with the resumption handle
                     break  # learner stopped / disconnected
-    except TimeoutError:
-        await _safe_send(ws, {"type": "error", "message": f"Buổi học đã đạt giới hạn {limits.max_seconds // 60} phút."})
+    except TimeoutError:  # not an error for the learner: the UI shows a friendly end screen
+        await _safe_send(ws, {"type": "session_end", "reason": "time_limit"})
     except WebSocketDisconnect:
         pass
     except Exception as e:  # surface provider errors (quota, 503, ...) to the UI
@@ -215,6 +187,8 @@ async def _run_session(ws: WebSocket, settings: LiveSettings, user: User, limits
         await _safe_send(ws, {"type": "error", "message": f"{type(e).__name__}: {e}"[:500]})
     finally:
         reader.cancel()
+        if wrap_up:
+            wrap_up.cancel()
         coach.close()
         duration = int(time.monotonic() - started)
         await _save(record_id, transcript, duration)
@@ -243,7 +217,22 @@ async def _save(record_id: int, transcript: Transcript, duration: int) -> None:
     log.info("conversation %s end (%ss, %d turns)", record_id, duration, len(turns))
 
 
+def _schedule_wrap_up(ws: WebSocket, inbox: asyncio.Queue, max_seconds: int, elapsed: float) -> asyncio.Task | None:
+    """2 minutes before the session limit: tell Emma to wrap up and tell the UI."""
+    delay = wrap_up_delay(max_seconds)
+    if delay is None:
+        return None
+
+    async def wrap_up() -> None:
+        await asyncio.sleep(max(0.0, delay - elapsed))
+        await inbox.put(("text", WRAP_UP_INSTRUCTION))
+        await _safe_send(ws, {"type": "wrap_up", "seconds_left": max_seconds - int(delay)})
+
+    return asyncio.create_task(wrap_up())
+
+
 async def _read_browser(ws: WebSocket, inbox: asyncio.Queue, transcript: Transcript) -> None:
+    last_action = -MIN_ACTION_GAP_S
     try:
         while True:
             msg = await ws.receive()
@@ -255,6 +244,13 @@ async def _read_browser(ws: WebSocket, inbox: asyncio.Queue, transcript: Transcr
                 data = json.loads(msg["text"])
                 if data.get("type") == "stop":
                     break
+                if data.get("type") == "action":
+                    instruction = action_instruction(data.get("action"))
+                    now = time.monotonic()
+                    if instruction and now - last_action >= MIN_ACTION_GAP_S:
+                        last_action = now
+                        await inbox.put(("text", instruction))
+                    continue
                 text = str(data.get("text", "")).strip()[:1000]
                 if data.get("type") == "text" and text:
                     transcript.close_turn()
@@ -311,7 +307,9 @@ async def _forward(inbox: asyncio.Queue, session: Any, coach: PronunciationCoach
             )
 
 
-async def _relay(ws: WebSocket, session: Any, resume: dict, transcript: Transcript, coach: PronunciationCoach) -> str:
+async def _relay(
+    ws: WebSocket, session: Any, resume: dict, transcript: Transcript, coach: PronunciationCoach, level: str
+) -> str:
     while True:  # session.receive() ends after each turn_complete
         async for m in session.receive():
             sc = m.server_content
@@ -336,7 +334,7 @@ async def _relay(ws: WebSocket, session: Any, resume: dict, transcript: Transcri
                     await ws.send_json({"type": "turn_complete"})
                     await coach.tutor_done(transcript.last_user_index())
             if m.tool_call:
-                await _answer_tool_calls(ws, session, transcript, m.tool_call)
+                await _answer_tool_calls(ws, session, transcript, m.tool_call, level)
             upd = m.session_resumption_update
             if upd and upd.resumable and upd.new_handle:
                 resume["handle"] = upd.new_handle
@@ -345,15 +343,15 @@ async def _relay(ws: WebSocket, session: Any, resume: dict, transcript: Transcri
                 return "go_away"
 
 
-async def _answer_tool_calls(ws: WebSocket, session: Any, transcript: Transcript, tool_call: Any) -> None:
-    """Show Emma's Vietnamese translations in the UI, then let the model continue speaking."""
+async def _answer_tool_calls(ws: WebSocket, session: Any, transcript: Transcript, tool_call: Any, level: str) -> None:
+    """Show Emma's on-screen cards (translation / feedback / hint) in the UI, then let the model continue."""
     responses = []
     for call in tool_call.function_calls or []:
-        if t := parse_translation(call):
-            transcript.add_translation(t.english, t.vietnamese)
-            await ws.send_json({"type": "translation", "english": t.english, "vietnamese": t.vietnamese})
+        if card := parse_tool_call(call, level):
+            transcript.add_card(card)
+            await ws.send_json(card.to_message())
         responses.append(
-            types.FunctionResponse(id=call.id, name=call.name, response={"result": "shown" if t else "unknown tool"})
+            types.FunctionResponse(id=call.id, name=call.name, response={"result": "shown" if card else "invalid"})
         )
     if responses:
         await session.send_tool_response(function_responses=responses)

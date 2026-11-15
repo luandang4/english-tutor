@@ -63,7 +63,9 @@ class Settings(BaseSettings):
     # --- live conversation limits -----------------------------------------
     max_concurrent_live_sessions: int = 2
     max_live_session_minutes: int = 30
-    live_end_of_speech_ms: int = 1200  # silence that ends a learner turn (learners pause to think)
+    # Silence that ends a learner turn. Unset = per level (A1 2000 ms … B2/C1 900 ms, see conversation/live.py);
+    # set it to force one value for every level.
+    live_end_of_speech_ms: int | None = None
     live_pronunciation: bool = True  # assess each spoken turn with Azure (needs AZURE_SPEECH_KEY)
 
     @property

@@ -137,3 +137,9 @@ class WritingFeedback(BaseModel):
     improvements_vi: list[str]
     corrections: list[WritingCorrection]
     improved_version: str = Field(description="The learner's text rewritten at a slightly higher level")
+
+
+class TextTranslation(BaseModel):
+    vietnamese: str = Field(description="Natural Vietnamese translation (word mode: the meaning in this context)")
+    ipa: str = Field(description="Word mode: US IPA with slashes. Sentence mode: empty string")
+    part_of_speech: str = Field(description="Word mode: noun / verb / adjective / ... Sentence mode: empty string")
