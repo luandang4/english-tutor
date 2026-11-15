@@ -65,3 +65,17 @@ export function scoreTone(score: number | null | undefined): 'good' | 'ok' | 'lo
 export function countWords(text: string): number {
   return (text.match(/[A-Za-z0-9]+(?:['’-][A-Za-z0-9]+)*/g) ?? []).length
 }
+
+const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime()
+
+/** Review day in words: "hôm nay", "ngày mai", "thứ Năm" (this week) or "12/12". */
+export function reviewDay(iso: string): string {
+  const days = Math.round((startOfDay(new Date(iso)) - startOfDay(new Date())) / 86_400_000)
+  if (days <= 0) return 'hôm nay'
+  if (days === 1) return 'ngày mai'
+  if (days < 7) {
+    const weekday = new Date(iso).toLocaleDateString('vi-VN', { weekday: 'long' }) // "Thứ Năm"
+    return weekday.charAt(0).toLowerCase() + weekday.slice(1)
+  }
+  return new Date(iso).toLocaleDateString('vi-VN', { day: 'numeric', month: 'numeric' })
+}

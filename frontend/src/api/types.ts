@@ -286,7 +286,17 @@ export interface Card {
   lapses: number
   last_reviewed_at: string | null
   intervals: Record<'1' | '2' | '3' | '4', string>
+  lesson_id: number | null
+  lesson_title: string | null
+  source: string
+  state: CardState
+  /** Forgotten 4+ times. */
+  is_hard: boolean
+  /** Memory tips of the word's lesson (hard words only). */
+  tips_vi: string[]
 }
+
+export type CardState = 'new' | 'learning' | 'mature'
 
 export interface DeckStats {
   total: number
@@ -295,6 +305,121 @@ export interface DeckStats {
   learning: number
   mature: number
   reviewed_today: number
+  hard: number
+}
+
+// ---------- review quizzes ----------
+export type QuestionKind =
+  | 'choose_meaning'
+  | 'listen_choose'
+  | 'listen_type'
+  | 'vi_to_en'
+  | 'fill_sentence'
+  | 'grammar_choice'
+  | 'grammar_fill'
+export type AnswerResult = 'correct' | 'near' | 'wrong'
+export type SessionMode = 'due' | 'soon' | 'hard' | 'lesson' | 'random'
+
+/** One auto-graded question. The expected answer is never sent; the answer endpoint reveals it. */
+export interface QuizQuestion {
+  id: string
+  kind: QuestionKind
+  prompt: string
+  hint_vi: string
+  part_of_speech: string
+  options: string[]
+  audio_url: string | null
+  letters: number
+  first_letter: string
+  card_id: number | null
+}
+
+export interface QuizOut {
+  lesson_id: number
+  skill: Skill
+  title: string
+  questions: QuizQuestion[]
+}
+
+export interface ReviewSession {
+  mode: SessionMode
+  questions: QuizQuestion[]
+  remaining: number
+}
+
+export interface AnswerIn {
+  question_id: string
+  answer: string
+  hinted?: boolean
+  requeued?: boolean
+}
+
+export interface WordReveal {
+  word: string
+  ipa: string
+  part_of_speech: string
+  meaning_vi: string
+  example_en: string
+  example_vi: string
+}
+
+export interface AnswerOut {
+  result: AnswerResult
+  expected: string
+  explanation_vi: string
+  word: WordReveal | null
+  card_id: number | null
+  /** FSRS rating applied; null = schedule unchanged. */
+  rating: number | null
+  next_review_at: string | null
+}
+
+export interface QuizItemResult {
+  question_id: string
+  label: string
+  expected: string
+  result: AnswerResult | null
+}
+
+export interface QuizResult {
+  score: number
+  total: number
+  correct: number
+  near: number
+  wrong: number
+  items: QuizItemResult[]
+  next_recheck_at: string | null
+  recheck_step: number
+}
+
+export interface ReviewForecast {
+  due: number
+  minutes: number
+  days: { date: string; count: number }[]
+  grammar: { lesson_id: number; title: string; step: number; due_at: string }[]
+}
+
+export interface LessonReviewStats {
+  lesson_id: number
+  cards: number
+  due: number
+  /** Mean predicted recall (0–100) of the lesson's reviewed words. */
+  retention: number | null
+  next_review_at: string | null
+  last_quiz_score: number | null
+  recheck_step: number
+  recheck_due: boolean
+}
+
+export interface SrsSettings {
+  desired_retention: number
+  new_cards_per_day: number
+}
+
+export interface CardCreate {
+  word: string
+  context?: string
+  meaning_vi?: string
 }
 
 // ---------- writing ----------

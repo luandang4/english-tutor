@@ -63,6 +63,12 @@ export const router = createBrowserRouter([
         ),
       },
       {
+        path: '/vocabulary/lessons/:id/quiz',
+        lazy: gated('vocabulary', () =>
+          import('./features/review/LessonQuizPage').then((m) => () => <m.LessonQuizPage skill="vocabulary" />),
+        ),
+      },
+      {
         path: '/grammar',
         lazy: gated('grammar', () =>
           import('./features/lessons/LessonHubPage').then((m) => () => <m.LessonHubPage skill="grammar" />),
@@ -72,6 +78,12 @@ export const router = createBrowserRouter([
         path: '/grammar/lessons/:id',
         lazy: gated('grammar', () =>
           import('./features/lessons/LessonPage').then((m) => () => <m.LessonPage skill="grammar" />),
+        ),
+      },
+      {
+        path: '/grammar/lessons/:id/quiz',
+        lazy: gated('grammar', () =>
+          import('./features/review/LessonQuizPage').then((m) => () => <m.LessonQuizPage skill="grammar" />),
         ),
       },
       {

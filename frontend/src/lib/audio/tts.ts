@@ -45,3 +45,10 @@ export async function playText(text: string): Promise<void> {
   const url = `/api/tts?text=${encodeURIComponent(text)}&source=${getAudioSource()}&v=${AUDIO_VERSION}`
   if (!(await playUrl(url))) await browserSpeak(text)
 }
+
+/** Play a word addressed by URL (listening questions: the page must not know the word itself). */
+export async function playWordUrl(path: string): Promise<void> {
+  const sep = path.includes('?') ? '&' : '?'
+  if (!(await playUrl(`${path}${sep}source=${getAudioSource()}&v=${AUDIO_VERSION}`)))
+    throw new Error('Không phát được âm thanh.')
+}

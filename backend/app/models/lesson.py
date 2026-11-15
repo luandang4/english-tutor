@@ -55,3 +55,20 @@ class ExerciseAttempt(TimestampMixin, Base):
     graded_by: Mapped[str] = mapped_column(String(60), default="rule")  # "rule" or a Gemini model id
 
     lesson: Mapped[Lesson] = relationship(back_populates="attempts")
+
+
+class LessonRecheck(TimestampMixin, Base):
+    """ "Kiểm tra lại" state of one lesson: the running quiz, the last result and (grammar) the 1-3-7-14 schedule."""
+
+    __tablename__ = "lesson_rechecks"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    lesson_id: Mapped[int] = mapped_column(ForeignKey("lessons.id", ondelete="CASCADE"), unique=True)
+    step: Mapped[int] = mapped_column(Integer, default=0)  # grammar: rechecks passed on schedule (0..4)
+    due_at: Mapped[datetime | None] = mapped_column(UTCDateTime(), nullable=True)  # None = derive from completion
+    runs: Mapped[int] = mapped_column(Integer, default=0)
+    last_done_at: Mapped[datetime | None] = mapped_column(UTCDateTime(), nullable=True)
+    last_score: Mapped[float | None] = mapped_column(Float, nullable=True)
+    wrong_items: Mapped[list[str]] = mapped_column(JSON, default=list)  # word keys / exercise ids missed last time
+    # The quiz in progress: {"items": [question ids], "full": bool, "answers": {question id: outcome}}
+    current: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)

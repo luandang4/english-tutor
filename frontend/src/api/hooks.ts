@@ -4,14 +4,18 @@ import { ApiError, api } from './client'
 import type {
   AdminUser,
   AdminUserPatch,
+  AnswerIn,
+  AnswerOut,
   AttemptOut,
   Card,
+  CardCreate,
   ConversationDetail,
   ConversationSummary,
   DeckStats,
   FeatureUsage,
   GrantInput,
   LessonDetail,
+  LessonReviewStats,
   LessonSummary,
   Level,
   Meta,
@@ -19,7 +23,13 @@ import type {
   PlanInput,
   Progress,
   PronunciationResult,
+  QuizOut,
+  QuizResult,
+  ReviewForecast,
+  ReviewSession,
+  SessionMode,
   Skill,
+  SrsSettings,
   Submission,
   SystemSettings,
   Topic,
@@ -50,6 +60,11 @@ export const keys = {
   adminUsers: ['admin', 'users'] as const,
   adminPlans: ['admin', 'plans'] as const,
   adminUsage: ['admin', 'usage'] as const,
+  dueCount: ['deck', 'due-count'] as const,
+  forecast: ['deck', 'forecast'] as const,
+  lessonStats: (skill: Skill) => ['deck', 'lesson-stats', skill] as const,
+  srsSettings: ['srs-settings'] as const,
+  session: (mode: SessionMode, lessonId?: number) => ['review-session', mode, lessonId ?? null] as const,
 }
 
 // ---------- auth ----------
@@ -226,6 +241,7 @@ export function useReviewCard() {
       api.post<Card>(`/vocab/cards/${id}/review`, { rating }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: keys.deckStats })
+      qc.invalidateQueries({ queryKey: keys.dueCount })
       qc.invalidateQueries({ queryKey: keys.cards(false) })
       qc.invalidateQueries({ queryKey: keys.progress })
     },
@@ -237,6 +253,99 @@ export function useDeleteCard() {
   return useMutation({
     mutationFn: (id: number) => api.del(`/vocab/cards/${id}`),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['deck'] }),
+  })
+}
+
+// ---------- review quizzes / spaced repetition ----------
+/** Cheap due count for the navigation badge. */
+export const useDueCount = () =>
+  useQuery({
+    queryKey: keys.dueCount,
+    queryFn: () => api.get<{ due: number }>('/vocab/due-count'),
+    refetchInterval: 60_000,
+    refetchOnWindowFocus: true,
+  })
+
+export const useForecast = () =>
+  useQuery({ queryKey: keys.forecast, queryFn: () => api.get<ReviewForecast>('/vocab/forecast') })
+
+export const useLessonReviewStats = (skill: Skill) =>
+  useQuery({
+    queryKey: keys.lessonStats(skill),
+    queryFn: () => api.get<LessonReviewStats[]>(`/vocab/lesson-stats?skill=${skill}`),
+  })
+
+export const useSrsSettings = () =>
+  useQuery({ queryKey: keys.srsSettings, queryFn: () => api.get<SrsSettings>('/vocab/settings') })
+
+export function useSaveSrsSettings() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (body: SrsSettings) => api.put<SrsSettings>('/vocab/settings', body),
+    onSuccess: (data) => qc.setQueryData(keys.srsSettings, data),
+  })
+}
+
+/** A batch of auto-graded review questions; stays fixed while the learner answers it. */
+export const useReviewSession = (mode: SessionMode, lessonId?: number, enabled = true) =>
+  useQuery({
+    queryKey: keys.session(mode, lessonId),
+    queryFn: () => api.get<ReviewSession>(`/vocab/session?mode=${mode}${lessonId ? `&lesson_id=${lessonId}` : ''}`),
+    enabled,
+    staleTime: Infinity,
+    gcTime: 0,
+  })
+
+/** Anything that changes schedules: refresh the counters and lists that show them. */
+function useInvalidateDeck() {
+  const qc = useQueryClient()
+  return () => {
+    for (const key of [keys.deckStats, keys.dueCount, keys.forecast, keys.cards(false), ['deck', 'lesson-stats'], keys.progress])
+      void qc.invalidateQueries({ queryKey: key })
+  }
+}
+
+export function useAnswerCard() {
+  const invalidate = useInvalidateDeck()
+  return useMutation({
+    mutationFn: (body: AnswerIn) => api.post<AnswerOut>('/vocab/answer', body),
+    onSuccess: invalidate,
+  })
+}
+
+export const useStartLessonQuiz = (lessonId: number) =>
+  useMutation({
+    mutationFn: (onlyWrong: boolean) =>
+      api.post<QuizOut>(`/lessons/${lessonId}/quiz${onlyWrong ? '?only_wrong=true' : ''}`),
+  })
+
+export function useAnswerLessonQuiz(lessonId: number) {
+  const invalidate = useInvalidateDeck()
+  return useMutation({
+    mutationFn: (body: AnswerIn) => api.post<AnswerOut>(`/lessons/${lessonId}/quiz/answer`, body),
+    onSuccess: (out) => {
+      if (out.card_id != null) invalidate()
+    },
+  })
+}
+
+export function useFinishLessonQuiz(lessonId: number) {
+  const invalidate = useInvalidateDeck()
+  return useMutation({
+    mutationFn: () => api.post<QuizResult>(`/lessons/${lessonId}/quiz/finish`),
+    onSuccess: invalidate,
+  })
+}
+
+export function useAddCard() {
+  const invalidate = useInvalidateDeck()
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (body: CardCreate) => api.post<{ card: Card; created: boolean }>('/vocab/cards', body),
+    onSuccess: () => {
+      invalidate()
+      void qc.invalidateQueries({ queryKey: keys.usage })
+    },
   })
 }
 

@@ -16,6 +16,7 @@ from app.schemas.ai import (
     UsefulPhrase,
     VocabLessonDraft,
     VocabWord,
+    WordInfo,
     WritingCorrection,
     WritingFeedback,
     WritingTaskDraft,
@@ -24,6 +25,7 @@ from app.schemas.ai import (
 T = TypeVar("T", bound=BaseModel)
 
 WORDS = ["itinerary", "souvenir", "boarding pass"]
+MEANINGS = {"itinerary": "lịch trình", "souvenir": "quà lưu niệm", "boarding pass": "thẻ lên máy bay"}
 
 EXERCISES = [
     ExerciseDraft(
@@ -84,7 +86,7 @@ class FakeAI:
                         word=w,
                         ipa="/x/",
                         part_of_speech="noun",
-                        meaning_vi="nghĩa",
+                        meaning_vi=MEANINGS[w],
                         definition_en="def",
                         example_en=f"An example with {w}.",
                         example_vi="ví dụ",
@@ -94,6 +96,17 @@ class FakeAI:
                 ],
                 tips_vi=["mẹo"],
                 exercises=EXERCISES,
+            )
+        if schema is WordInfo:
+            word = prompt.split("word or phrase: ")[1].split("\n")[0].strip()
+            return WordInfo(
+                word=word,
+                ipa="/fake/",
+                part_of_speech="noun",
+                meaning_vi=f"nghĩa của từ số {len(self.calls)}",
+                definition_en="a fake definition",
+                example_en=f"She found {word} by chance.",
+                example_vi="Cô ấy tình cờ tìm thấy nó.",
             )
         if schema is GrammarLessonDraft:
             return GrammarLessonDraft(

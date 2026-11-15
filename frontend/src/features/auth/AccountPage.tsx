@@ -5,6 +5,7 @@ import { useChangePassword, useLogout, useMe } from '../../api/hooks'
 import { AudioSourceSelect, ErrorBox, Icon, PageHeader, PasswordInput, Spinner, SpeakButton } from '../../components/ui'
 import { passwordStrongEnough } from '../../lib/password'
 import { MyPlan } from './MyPlan'
+import { SrsSettingsCard } from '../review/SrsSettingsCard'
 import './auth.css'
 
 export function AccountPage() {
@@ -54,6 +55,8 @@ export function AccountPage() {
           <SpeakButton text="Hello, nice to meet you." label="Nghe thử" />
         </div>
       </div>
+
+      <SrsSettingsCard />
 
       <form
         className="card stack"

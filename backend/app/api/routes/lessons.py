@@ -1,16 +1,28 @@
 """Vocabulary & grammar lessons."""
 
-from fastapi import APIRouter, HTTPException, Response, status
+from fastapi import APIRouter, HTTPException, Query, Response, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import CurrentUser, SessionDep, get_or_404, get_owned
+from app.api.routes.tts import word_audio
 from app.core.constants import LessonStatus, Skill
 from app.models.lesson import Lesson
 from app.models.topic import Topic
 from app.models.user import User
-from app.schemas.api import AttemptCreate, AttemptOut, DeckAddOut, LessonCreate, LessonDetail, LessonSummary
-from app.services import access, srs, topics
+from app.schemas.api import (
+    AnswerIn,
+    AnswerOut,
+    AttemptCreate,
+    AttemptOut,
+    DeckAddOut,
+    LessonCreate,
+    LessonDetail,
+    LessonSummary,
+    QuizOut,
+    QuizResultOut,
+)
+from app.services import access, lesson_quiz, quiz, srs, topics
 from app.services import lessons as svc
 from app.services.ai.client import AIUnavailableError
 
@@ -133,3 +145,54 @@ async def add_to_deck(lesson_id: int, session: SessionDep, user: CurrentUser) ->
     added = await srs.add_lesson_words(session, lesson)
     await session.commit()
     return DeckAddOut(added=added, in_deck=await srs.lesson_words_in_deck(session, lesson))
+
+
+# ---------- "Kiểm tra lại": quiz rebuilt from the lesson's data (no Gemini, no quota) ----------
+async def _quiz_lesson(session: AsyncSession, lesson_id: int, user: User) -> Lesson:
+    lesson = await _owned_lesson(session, lesson_id, user)
+    if lesson.status not in (LessonStatus.READY, LessonStatus.COMPLETED) or not lesson.content:
+        raise HTTPException(409, "Bài học chưa sẵn sàng.")
+    return lesson
+
+
+@router.post("/{lesson_id}/quiz", response_model=QuizOut)
+async def start_quiz(lesson_id: int, session: SessionDep, user: CurrentUser, only_wrong: bool = False) -> QuizOut:
+    lesson = await _quiz_lesson(session, lesson_id, user)
+    try:
+        return await lesson_quiz.start_quiz(session, lesson, only_wrong)
+    except lesson_quiz.QuizError as e:
+        raise HTTPException(409, str(e)) from e
+
+
+@router.post("/{lesson_id}/quiz/answer", response_model=AnswerOut)
+async def answer_quiz(lesson_id: int, body: AnswerIn, session: SessionDep, user: CurrentUser) -> AnswerOut:
+    lesson = await _quiz_lesson(session, lesson_id, user)
+    try:
+        return await lesson_quiz.answer_quiz(session, lesson, body)
+    except quiz.BadQuestion as e:
+        raise HTTPException(422, str(e)) from e
+
+
+@router.post("/{lesson_id}/quiz/finish", response_model=QuizResultOut)
+async def finish_quiz(lesson_id: int, session: SessionDep, user: CurrentUser) -> QuizResultOut:
+    lesson = await _quiz_lesson(session, lesson_id, user)
+    try:
+        return await lesson_quiz.finish_quiz(session, lesson)
+    except lesson_quiz.QuizError as e:
+        raise HTTPException(409, str(e)) from e
+
+
+@router.get("/{lesson_id}/words/{index}/audio", response_class=Response)
+async def word_audio_(
+    lesson_id: int,
+    index: int,
+    session: SessionDep,
+    user: CurrentUser,
+    source: str | None = Query(None, pattern="^(auto|google|dictionary|kokoro)$"),
+) -> Response:
+    """Audio of one lesson word, addressed by position (listening questions must not reveal the word)."""
+    lesson = await _quiz_lesson(session, lesson_id, user)
+    words = (lesson.content or {}).get("words", [])
+    if not 0 <= index < len(words):
+        raise HTTPException(404, "Từ không tồn tại.")
+    return await word_audio(words[index]["word"], source)

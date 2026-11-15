@@ -1,8 +1,8 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 
-import { useCreateLesson, useDeleteLesson, useLessons, useTopics } from '../../api/hooks'
-import type { CustomTopic, LessonSummary, Skill, Topic } from '../../api/types'
+import { useCreateLesson, useDeleteLesson, useLessonReviewStats, useLessons, useTopics } from '../../api/hooks'
+import type { CustomTopic, LessonReviewStats, LessonSummary, Skill, Topic } from '../../api/types'
 import {
   EmptyState,
   ErrorBox,
@@ -13,10 +13,11 @@ import {
   ProgressBar,
   StatusBadge,
 } from '../../components/ui'
-import { scoreTone, timeAgo } from '../../lib/format'
+import { reviewDay, scoreTone, timeAgo } from '../../lib/format'
 import { useLevel } from '../../lib/preferences'
 import { CustomTopicForm } from './CustomTopicForm'
 import { TopicGrid } from './TopicGrid'
+import '../review/review.css'
 
 const CUSTOM_BUSY = -1 // busyId while a custom-topic lesson is being created
 
@@ -124,8 +125,11 @@ export function LessonHubPage({ skill }: { skill: 'vocabulary' | 'grammar' }) {
   )
 }
 
-function LessonList({ skill, lessons }: { skill: Skill; lessons: LessonSummary[] }) {
+function LessonList({ skill, lessons }: { skill: 'vocabulary' | 'grammar'; lessons: LessonSummary[] }) {
   const del = useDeleteLesson(skill)
+  const navigate = useNavigate()
+  const { data: reviewStats } = useLessonReviewStats(skill)
+  const statsById = new Map((reviewStats ?? []).map((s) => [s.lesson_id, s]))
   return (
     <div className="list">
       {lessons.map((l) => {
@@ -146,8 +150,22 @@ function LessonList({ skill, lessons }: { skill: Skill; lessons: LessonSummary[]
                   <ProgressBar value={pct} />
                 </div>
               )}
+              {statsById.has(l.id) && <ReviewMeta skill={skill} stats={statsById.get(l.id)!} />}
             </div>
             {l.score != null && <span className={`score tone-${scoreTone(l.score)}`}>{Math.round(l.score)}</span>}
+            {(l.status === 'ready' || l.status === 'completed') && (
+              <button
+                className="btn sm"
+                title="Kiểm tra lại (không tốn lượt AI)"
+                aria-label="Kiểm tra lại"
+                onClick={(e) => {
+                  e.preventDefault()
+                  navigate(`/${skill}/lessons/${l.id}/quiz`)
+                }}
+              >
+                <Icon name="refresh" size={16} /> <span className="hide-sm">Kiểm tra lại</span>
+              </button>
+            )}
             <button
               className="btn icon sm ghost danger"
               aria-label="Xoá bài học"
@@ -164,4 +182,22 @@ function LessonList({ skill, lessons }: { skill: Skill; lessons: LessonSummary[]
       })}
     </div>
   )
+}
+
+/** "Nhớ 80% · 3 từ cần ôn · ôn lần tới: thứ Năm" (vocabulary) or the 1-3-7-14 re-check state (grammar). */
+function ReviewMeta({ skill, stats }: { skill: 'vocabulary' | 'grammar'; stats: LessonReviewStats }) {
+  const parts: ReactNode[] = []
+  if (skill === 'vocabulary') {
+    if (!stats.cards) return null
+    if (stats.retention != null) parts.push(<span key="r">Nhớ {stats.retention}%</span>)
+    if (stats.due) parts.push(<span key="d" className="due">{stats.due} từ cần ôn</span>)
+    else if (stats.next_review_at) parts.push(<span key="n">ôn lần tới: {reviewDay(stats.next_review_at)}</span>)
+  } else {
+    if (stats.recheck_due) parts.push(<span key="d" className="due">Đến hạn kiểm tra lại</span>)
+    else if (stats.next_review_at) parts.push(<span key="n">kiểm tra lại: {reviewDay(stats.next_review_at)}</span>)
+    else if (stats.recheck_step >= 4) parts.push(<span key="f">Đã ôn đủ 4 lần</span>)
+  }
+  if (stats.last_quiz_score != null) parts.push(<span key="q">kiểm tra gần nhất {Math.round(stats.last_quiz_score)} điểm</span>)
+  if (!parts.length) return null
+  return <div className="review-meta">{parts.flatMap((p, i) => (i ? [<span key={`s${i}`}>·</span>, p] : [p]))}</div>
 }

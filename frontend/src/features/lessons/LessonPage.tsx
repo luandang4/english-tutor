@@ -98,7 +98,10 @@ export function LessonPage({ skill }: { skill: 'vocabulary' | 'grammar' }) {
         <ScoreRing score={lesson.score} size={88} label="Điểm bài học" />
       </div>
 
-      <div className="row" style={{ justifyContent: 'flex-end' }}>
+      <div className="row" style={{ justifyContent: 'flex-end', alignItems: 'flex-end' }}>
+        <Link className="btn sm" to={`/${skill}/lessons/${lesson.id}/quiz`} title="Đề tự động từ nội dung bài, không tốn lượt AI">
+          <Icon name="refresh" size={16} /> Kiểm tra lại
+        </Link>
         <AudioSourceSelect />
       </div>
 
@@ -152,9 +155,10 @@ export function LessonPage({ skill }: { skill: 'vocabulary' | 'grammar' }) {
                 {lesson.in_deck >= words ? (
                   <>
                     <span className="small tone-good">✓ {lesson.in_deck} từ đã có trong bộ ôn tập</span>
-                    <Link className="btn sm primary" to="/review">
-                      <Icon name="cards" size={16} /> Ôn tập ngay
+                    <Link className="btn sm primary" to={`/${skill}/lessons/${lesson.id}/quiz`}>
+                      <Icon name="refresh" size={16} /> Kiểm tra lại
                     </Link>
+                    <span className="small muted">Lần ôn đầu tiên của các từ này: khoảng 1 ngày sau.</span>
                   </>
                 ) : (
                   <button className="btn sm primary" onClick={() => addToDeck.mutate()} disabled={addToDeck.isPending}>
