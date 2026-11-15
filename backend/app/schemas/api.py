@@ -224,6 +224,12 @@ class CardOut(ORM):
     lapses: int
     last_reviewed_at: datetime | None
     intervals: dict[str, str] = {}
+    lesson_id: int | None = None
+    lesson_title: str | None = None
+    source: str = "lesson"
+    state: Literal["new", "learning", "mature"] = "new"
+    is_hard: bool = Field(default=False, description="Forgotten 4+ times")
+    tips_vi: list[str] = Field(default=[], description="Memory tips of the word's lesson (hard words only)")
 
 
 class DeckStats(BaseModel):
@@ -233,6 +239,7 @@ class DeckStats(BaseModel):
     learning: int
     mature: int
     reviewed_today: int
+    hard: int = 0
 
 
 class ReviewCreate(BaseModel):
@@ -242,6 +249,145 @@ class ReviewCreate(BaseModel):
 class DeckAddOut(BaseModel):
     added: int
     in_deck: int
+
+
+# ---------- review quizzes (lesson "Kiểm tra lại" + auto-graded review sessions) ----------
+QuestionKind = Literal[
+    "choose_meaning", "listen_choose", "listen_type", "vi_to_en", "fill_sentence", "grammar_choice", "grammar_fill"
+]
+AnswerResult = Literal["correct", "near", "wrong"]
+SessionMode = Literal["due", "soon", "hard", "lesson", "random"]
+
+
+class QuizQuestion(BaseModel):
+    """One question. The expected answer is never included; it is revealed by the answer endpoint."""
+
+    id: str = Field(description="Opaque id, sent back with the answer")
+    kind: QuestionKind
+    prompt: str = Field(description="Word / meaning / sentence with ___ (empty for listening questions)")
+    hint_vi: str = ""
+    part_of_speech: str = ""
+    options: list[str] = []
+    audio_url: str | None = Field(default=None, description="Listening questions: the word's audio")
+    letters: int = Field(default=0, description="Typed questions: length of the expected answer")
+    first_letter: str = Field(default="", description="Typed questions: shown only when the learner asks for a hint")
+    card_id: int | None = None
+
+
+class QuizOut(BaseModel):
+    lesson_id: int
+    skill: Skill
+    title: str
+    questions: list[QuizQuestion]
+
+
+class SessionOut(BaseModel):
+    mode: SessionMode
+    questions: list[QuizQuestion]
+    remaining: int = Field(description="Matching cards not included in this batch (e.g. due beyond the cap)")
+
+
+class AnswerIn(BaseModel):
+    question_id: str = Field(min_length=1, max_length=120)
+    answer: str = Field(default="", max_length=300)
+    hinted: bool = Field(default=False, description="Learner revealed the hint: a right answer counts as Hard")
+    requeued: bool = Field(default=False, description="Retry of a card missed earlier in this session: no FSRS")
+
+
+class WordReveal(BaseModel):
+    word: str
+    ipa: str = ""
+    part_of_speech: str = ""
+    meaning_vi: str = ""
+    example_en: str = ""
+    example_vi: str = ""
+
+
+class AnswerOut(BaseModel):
+    result: AnswerResult
+    expected: str
+    explanation_vi: str = ""
+    word: WordReveal | None = None
+    card_id: int | None = None
+    rating: int | None = Field(default=None, description="FSRS rating applied; null = schedule unchanged")
+    next_review_at: datetime | None = None
+
+
+class QuizItemResult(BaseModel):
+    question_id: str
+    label: str
+    expected: str
+    result: AnswerResult | None = Field(description="null = not answered")
+
+
+class QuizResultOut(BaseModel):
+    score: float
+    total: int
+    correct: int
+    near: int
+    wrong: int
+    items: list[QuizItemResult]
+    next_recheck_at: datetime | None = None
+    recheck_step: int = 0
+
+
+class ForecastDay(BaseModel):
+    date: str
+    count: int
+
+
+class GrammarRecheckDue(BaseModel):
+    lesson_id: int
+    title: str
+    step: int
+    due_at: datetime
+
+
+class ReviewForecast(BaseModel):
+    due: int
+    minutes: int = Field(description="Estimated minutes for today's due cards (~20 s per card)")
+    days: list[ForecastDay] = Field(description="Today and the next 6 days: cards due on each day")
+    grammar: list[GrammarRecheckDue]
+
+
+class LessonReviewStats(BaseModel):
+    lesson_id: int
+    cards: int = 0
+    due: int = 0
+    retention: float | None = Field(
+        default=None, description="Mean FSRS retrievability (0-100) of the lesson's reviewed cards"
+    )
+    next_review_at: datetime | None = None
+    last_quiz_score: float | None = None
+    recheck_step: int = 0
+    recheck_due: bool = False
+
+
+class SrsSettingsIO(BaseModel):
+    desired_retention: float = Field(ge=0.85, le=0.95)
+    new_cards_per_day: int = Field(ge=5, le=100)
+
+
+class CardCreate(BaseModel):
+    """Add a word to the deck. Only `word` is required: missing meaning / IPA / example are filled by Gemini."""
+
+    word: str = Field(min_length=1, max_length=120)
+    context: str = Field(default="", max_length=500, description="Sentence where the learner met the word")
+    ipa: str = Field(default="", max_length=120)
+    part_of_speech: str = Field(default="", max_length=40)
+    meaning_vi: str = Field(default="", max_length=500)
+    definition_en: str = Field(default="", max_length=500)
+    example_en: str = Field(default="", max_length=500)
+    example_vi: str = Field(default="", max_length=500)
+
+
+class CardAddOut(BaseModel):
+    card: CardOut
+    created: bool
+
+
+class DueCount(BaseModel):
+    due: int
 
 
 # ---------- writing ----------

@@ -44,6 +44,18 @@ class VocabWord(BaseModel):
     collocations: list[str] = Field(description="2-3 common collocations or related phrases")
 
 
+class WordInfo(BaseModel):
+    """Dictionary entry for a word the learner adds to their deck by hand."""
+
+    word: str = Field(description="The word or phrase in its dictionary form, spelling corrected")
+    ipa: str = Field(description="IPA transcription, US English, with slashes")
+    part_of_speech: str = Field(description="noun / verb / adjective / adverb / phrase / phrasal verb ...")
+    meaning_vi: str = Field(description="Concise Vietnamese meaning (the sense used in the context, if given)")
+    definition_en: str = Field(description="Simple learner-dictionary definition in English")
+    example_en: str = Field(description="Natural example sentence using the word")
+    example_vi: str = Field(description="Vietnamese translation of the example")
+
+
 class VocabLessonDraft(BaseModel):
     title: str = Field(description="Lesson title in English")
     intro_vi: str = Field(description="1-2 sentence introduction in Vietnamese")

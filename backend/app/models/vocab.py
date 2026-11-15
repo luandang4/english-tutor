@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import JSON, ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy import JSON, Boolean, Float, ForeignKey, Integer, String, Text, UniqueConstraint, true
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base, TimestampMixin, UTCDateTime
@@ -31,6 +31,8 @@ class VocabCard(TimestampMixin, Base):
     reps: Mapped[int] = mapped_column(Integer, default=0)
     lapses: Mapped[int] = mapped_column(Integer, default=0)
     last_reviewed_at: Mapped[datetime | None] = mapped_column(UTCDateTime(), nullable=True)
+    # Where the word came from: lesson / manual / conversation / writing.
+    source: Mapped[str] = mapped_column(String(20), default="lesson", server_default="lesson")
 
     reviews: Mapped[list["ReviewLog"]] = relationship(back_populates="card", cascade="all, delete-orphan")
 
@@ -42,5 +44,18 @@ class ReviewLog(Base):
     card_id: Mapped[int] = mapped_column(ForeignKey("vocab_cards.id", ondelete="CASCADE"), index=True)
     rating: Mapped[int] = mapped_column(Integer)  # 1 Again, 2 Hard, 3 Good, 4 Easy
     reviewed_at: Mapped[datetime] = mapped_column(UTCDateTime(), index=True)
+    # False = graded answer that did not move the schedule (early correct answer, re-queued retry).
+    counted: Mapped[bool] = mapped_column(Boolean, default=True, server_default=true())
+    source: Mapped[str] = mapped_column(String(20), default="flip", server_default="flip")  # flip / review / quiz
 
     card: Mapped[VocabCard] = relationship(back_populates="reviews")
+
+
+class SrsSettings(Base):
+    """Per-learner spaced-repetition preferences (a row only exists once the learner changed something)."""
+
+    __tablename__ = "srs_settings"
+
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    desired_retention: Mapped[float] = mapped_column(Float, default=0.9)
+    new_cards_per_day: Mapped[int] = mapped_column(Integer, default=20)

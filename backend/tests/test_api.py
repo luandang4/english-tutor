@@ -36,12 +36,16 @@ def test_vocabulary_lesson_flow(client, wait_for) -> None:
     assert r["cards_added"] == 3
 
     stats = client.get("/api/vocab/stats").json()
-    assert stats["total"] == 3 and stats["due"] == 3
-    card = client.get("/api/vocab/cards?due=true").json()[0]
-    assert set(card["intervals"]) == {"1", "2", "3", "4"}
-    reviewed = client.post(f"/api/vocab/cards/{card['id']}/review", json={"rating": 4}).json()
-    assert reviewed["reps"] == 1 and reviewed["due_at"] > card["due_at"]
-    assert client.get("/api/vocab/stats").json()["reviewed_today"] == 1
+    # new words wait ~1 day for their first review
+    assert stats["total"] == 3 and stats["due"] == 0 and stats["new"] == 3
+    card = client.get("/api/vocab/cards").json()[0]
+    assert set(card["intervals"]) == {"1", "2", "3", "4"} and card["state"] == "new"
+    assert card["lesson_title"] == lesson["title"]
+    early = client.post(f"/api/vocab/cards/{card['id']}/review", json={"rating": 4}).json()
+    assert early["reps"] == 0 and early["due_at"] == card["due_at"]  # not due yet: "Dễ" does not move it
+    forgot = client.post(f"/api/vocab/cards/{card['id']}/review", json={"rating": 1}).json()
+    assert forgot["reps"] == 1 and forgot["due_at"] < card["due_at"]  # forgetting pulls it forward
+    assert client.get("/api/vocab/stats").json()["reviewed_today"] == 2
 
     # adding the same lesson again does not duplicate words
     assert client.post(f"/api/lessons/{lid}/deck").json() == {"added": 0, "in_deck": 3}

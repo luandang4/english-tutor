@@ -1,0 +1,93 @@
+/* Review quizzes, review sessions, forecast. Semantic tokens only (dark + light come from global.css). */
+
+.quiz-wrap { width: 100%; max-width: 640px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
+.quiz-progress { display: flex; flex-direction: column; gap: 6px; }
+
+.quiz-card { display: flex; flex-direction: column; gap: 16px; }
+.quiz-card.correct { border-color: var(--good); }
+.quiz-card.near { border-color: var(--ok); }
+.quiz-card.wrong { border-color: var(--danger); }
+.quiz-kind { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.quiz-prompt { display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; padding: 8px 0; }
+.quiz-word { font-size: 2rem; font-weight: 800; line-height: 1.2; overflow-wrap: anywhere; }
+.quiz-meaning { font-size: 1.35rem; font-weight: 700; overflow-wrap: anywhere; }
+.quiz-sentence { font-size: 1.15rem; font-weight: 600; line-height: 1.7; overflow-wrap: anywhere; }
+.quiz-sentence .gap { display: inline-block; min-width: 80px; border-bottom: 2px solid var(--accent); margin: 0 4px; color: var(--accent); }
+.letter-hint { font-family: ui-monospace, "SF Mono", Menlo, monospace; letter-spacing: 0.25em; color: var(--muted); font-size: 0.95rem; }
+.listen-btn {
+  width: 84px; height: 84px; border-radius: 50%; display: grid; place-items: center; border: 1px solid var(--border-strong);
+  background: var(--accent-gradient); color: var(--on-primary); cursor: pointer; box-shadow: var(--glow);
+}
+.listen-btn svg { width: 34px; height: 34px; }
+.listen-btn:disabled { opacity: 0.6; cursor: wait; }
+
+.quiz-answer { display: flex; gap: 8px; }
+.quiz-answer .input { flex: 1; font-size: 1.05rem; }
+.quiz-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.quiz-actions .spacer { flex: 1; }
+
+.quiz-feedback { border-radius: 14px; padding: 14px; display: flex; flex-direction: column; gap: 8px; font-size: 0.92rem; }
+.quiz-feedback.correct { background: var(--good-bg); }
+.quiz-feedback.near { background: var(--ok-bg); }
+.quiz-feedback.wrong { background: var(--danger-bg); }
+.quiz-feedback .title { font-weight: 800; font-size: 1rem; }
+.quiz-feedback.correct .title { color: var(--good); }
+.quiz-feedback.near .title { color: var(--ok); }
+.quiz-feedback.wrong .title { color: var(--danger); }
+.quiz-feedback .reveal { display: flex; flex-direction: column; gap: 4px; }
+.quiz-feedback .reveal .head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.quiz-feedback .ipa { color: var(--primary-soft); font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 0.85rem; }
+
+.result-list { display: flex; flex-direction: column; gap: 6px; }
+.result-row { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 12px; background: var(--panel); border: 1px solid var(--border); }
+.result-row .label { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.result-row .expected { color: var(--muted); font-size: 0.85rem; overflow-wrap: anywhere; }
+.result-mark { width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; flex: none; font-weight: 800; font-size: 0.8rem; }
+.result-mark.correct { background: var(--good-bg); color: var(--good); }
+.result-mark.near { background: var(--ok-bg); color: var(--ok); }
+.result-mark.wrong { background: var(--danger-bg); color: var(--danger); }
+
+.practice-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
+.practice-option {
+  display: flex; flex-direction: column; gap: 4px; text-align: left; padding: 14px 16px; border-radius: 16px;
+  border: 1px solid var(--border); background: var(--panel-strong); cursor: pointer;
+}
+.practice-option:hover:not(:disabled) { border-color: var(--primary); }
+.practice-option:disabled { opacity: 0.5; cursor: not-allowed; }
+.practice-option b { font-size: 0.98rem; }
+.practice-option span { color: var(--muted); font-size: 0.82rem; }
+
+/* Today card + 7-day forecast */
+.today { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); gap: 20px; align-items: center; }
+@media (max-width: 700px) { .today { grid-template-columns: minmax(0, 1fr); } }
+.today .big { font-size: 1.35rem; font-weight: 800; }
+.forecast { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; align-items: end; }
+.forecast .day { display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 0; }
+.forecast .bar-box { height: 72px; width: 100%; display: flex; align-items: flex-end; justify-content: center; }
+.forecast .bar { width: 70%; max-width: 28px; min-height: 3px; border-radius: 6px 6px 2px 2px; background: var(--accent-gradient); }
+.forecast .bar.empty { background: var(--panel-strong); }
+.forecast .count { font-size: 0.75rem; font-weight: 700; }
+.forecast .label { font-size: 0.7rem; color: var(--muted); }
+.forecast .day.today .label { color: var(--accent); font-weight: 700; }
+
+/* Deck filters & rows */
+.deck-filters { display: grid; grid-template-columns: minmax(0, 1fr) repeat(3, minmax(0, 180px)); gap: 8px; }
+@media (max-width: 760px) { .deck-filters { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } .deck-filters .search { grid-column: 1 / -1; } }
+.add-word { display: flex; gap: 8px; }
+.add-word .input { flex: 1; }
+.badge.hard { color: var(--danger); border-color: var(--danger); }
+.badge.state-new { color: var(--cool); }
+.badge.state-mature { color: var(--good); }
+.tips { font-size: 0.82rem; color: var(--muted); margin-top: 4px; }
+.tips summary { cursor: pointer; color: var(--primary-soft); }
+.tips ul { margin: 4px 0 0; padding-left: 18px; }
+
+.review-meta { display: flex; gap: 6px 10px; flex-wrap: wrap; font-size: 0.78rem; color: var(--muted); margin-top: 4px; }
+.review-meta .due { color: var(--accent); font-weight: 700; }
+
+@media (max-width: 600px) {
+  .quiz-word { font-size: 1.6rem; }
+  .quiz-answer { flex-direction: column; }
+  .add-word { flex-direction: column; }
+  .hide-sm { display: none; }
+}

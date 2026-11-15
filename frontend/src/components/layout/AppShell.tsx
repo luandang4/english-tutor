@@ -1,6 +1,6 @@
 import { Link, Navigate, NavLink, Outlet, useLocation } from 'react-router-dom'
 
-import { useDeckStats, useMe } from '../../api/hooks'
+import { useDueCount, useMe } from '../../api/hooks'
 import type { Feature } from '../../api/types'
 import { useAccess } from '../../lib/access'
 import '../../features/auth/auth.css'
@@ -17,7 +17,7 @@ const NAV: { to: string; label: string; short: string; icon: IconName; end?: boo
 ]
 
 function NavItems({ compact }: { compact?: boolean }) {
-  const { data: deck } = useDeckStats()
+  const { data: deck } = useDueCount()
   const { can, isAdmin } = useAccess()
   return (
     <>

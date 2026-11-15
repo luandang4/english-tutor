@@ -6,6 +6,7 @@ import { useAccess } from '../../lib/access'
 import type { Skill } from '../../api/types'
 import { ErrorBox, Icon, Loading, ProgressBar, type IconName } from '../../components/ui'
 import { SKILL_LABEL, scoreTone, timeAgo } from '../../lib/format'
+import { TodayCard } from '../review/TodayCard'
 
 const QUICK: { to: string; icon: IconName; title: string; text: string; color: string; feature: Feature }[] = [
   { to: '/conversation', icon: 'mic', title: 'Hội thoại', text: 'Nói chuyện với Emma bằng giọng nói', color: '#ff7ac8', feature: 'conversation' },
@@ -74,15 +75,7 @@ export function DashboardPage() {
         <ErrorBox error={error} onRetry={() => refetch()} />
       ) : (
         <>
-          {p.deck.due > 0 && (
-            <Link to="/review" className="alert info row">
-              <Icon name="cards" />
-              <span className="spacer">
-                Có <b>{p.deck.due}</b> từ cần ôn hôm nay — ôn ngay để không quên nhé.
-              </span>
-              <Icon name="arrowRight" />
-            </Link>
-          )}
+          <TodayCard />
 
           <div className="grid cols-4">
             <div className="card stat">

@@ -136,3 +136,9 @@ Requirements:
 - Slightly more challenging than a first practice (more natural contexts, fewer obvious clues),
   but still within the learner's level.
 - fill_blank: exactly one ___ gap, list every acceptable answer. multiple_choice: plausible distractors."""
+
+
+def word_info_prompt(word: str, context: str) -> str:
+    ctx = f"\nThe learner met it in this context: {context}\nGive the meaning used in that context." if context else ""
+    return f"""Write a learner-dictionary entry for the English word or phrase: {word}{ctx}
+If the word is misspelled, correct it. Keep the example short (under 15 words) and natural."""

@@ -54,3 +54,42 @@ async def grade(exercise: dict, answer: str, context: str) -> Grade:
 
 def count_words(text: str) -> int:
     return len(re.findall(r"[A-Za-z0-9]+(?:['’-][A-Za-z0-9]+)*", text))
+
+
+# ---------- typed answers in review quizzes (no AI) ----------
+NEAR_MIN_LETTERS = 5  # a one-letter slip only counts as "almost" on words this long
+
+
+def loose(text: str) -> str:
+    """Case, whitespace and punctuation-insensitive form ("Boarding-pass!" -> "boarding pass")."""
+    t = unicodedata.normalize("NFKC", text).translate(_QUOTES).lower()
+    t = re.sub(r"[^\w\s']|_", " ", t).replace("'", "")
+    return " ".join(t.split())
+
+
+def levenshtein(a: str, b: str) -> int:
+    prev = list(range(len(b) + 1))
+    for i, ca in enumerate(a, start=1):
+        cur = [i]
+        for j, cb in enumerate(b, start=1):
+            cur.append(min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (ca != cb)))
+        prev = cur
+    return prev[-1]
+
+
+def check_typed(answer: str, accepted: list[str]) -> str:
+    """'correct' on an exact (loose) match, 'near' for a one-letter slip on a long word, else 'wrong'."""
+    given = loose(answer)
+    keys = [k for k in (loose(a) for a in accepted) if k]
+    if not given or not keys:
+        return "wrong"
+    if given in keys:
+        return "correct"
+    for key in keys:
+        if len(key.replace(" ", "")) >= NEAR_MIN_LETTERS and levenshtein(given, key) <= 1:
+            return "near"
+    return "wrong"
+
+
+def check_choice(answer: str, correct: str) -> str:
+    return "correct" if loose(answer) == loose(correct) else "wrong"
