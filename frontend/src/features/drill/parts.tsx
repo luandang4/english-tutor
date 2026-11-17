@@ -3,22 +3,20 @@ import { useEffect, useRef } from 'react'
 import { SpeakButton } from '../../components/ui'
 import type { DiffPart } from './check'
 import { wordKey } from './counts'
-import type { Cover, DrillWord, Line } from './model'
+import type { DrillWord, Line } from './model'
 
-/** The word to copy: spelling, sound, meaning and an example. A covered side is hidden until revealed. */
-export function ModelCard({ w, cover, reveal }: { w: DrillWord; cover: Cover; reveal: boolean }) {
-  const hideEn = cover === 'english' && !reveal
-  const hideVi = cover === 'meaning' && !reveal
+/** The word to copy: spelling, sound, meaning and an example. */
+export function ModelCard({ w }: { w: DrillWord }) {
   return (
     <div className="drill-model">
       <div className="drill-model-en">
-        {hideEn ? <span className="drill-hidden">? ? ?</span> : <span className="drill-word">{w.word}</span>}
+        <span className="drill-word">{w.word}</span>
         <SpeakButton text={w.word} label={`Nghe “${w.word}”`} />
-        {!hideEn && w.ipa && <span className="ipa">{w.ipa}</span>}
+        {w.ipa && <span className="ipa">{w.ipa}</span>}
         {w.part_of_speech && <span className="pos">{w.part_of_speech}</span>}
       </div>
-      <div className="drill-model-vi">{hideVi ? <span className="drill-hidden">? ? ?</span> : w.meaning_vi}</div>
-      {w.example_en && !hideEn && (
+      <div className="drill-model-vi">{w.meaning_vi}</div>
+      {w.example_en && (
         <div className="drill-example">
           <span>{w.example_en}</span>
           {w.example_vi && <span className="muted">{w.example_vi}</span>}

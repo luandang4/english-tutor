@@ -6,8 +6,9 @@ import { playText } from '../../lib/audio/tts'
 import { usePreference } from '../../lib/preferences'
 import { checkEnglish, checkMeaning, letterDiff, type DiffPart } from './check'
 import { addCount, readCounts, wordKey } from './counts'
-import { COVER_OPTIONS, GOAL_OPTIONS, type Cover, type DrillWord, type Goal, type Line } from './model'
+import { GOAL_OPTIONS, type DrillWord, type Goal, type Line } from './model'
 import { ModelCard, Notebook, SpellingDiff, WordStrip } from './parts'
+import { SlotInput } from './SlotInput'
 import './drill.css'
 
 /** Result of the last line, shown under the inputs until the next one is written. */
@@ -26,7 +27,6 @@ export function WriteDrill({ words, startIndex = 0 }: { words: DrillWord[]; star
   const [en, setEn] = useState('')
   const [vi, setVi] = useState('')
   const [feedback, setFeedback] = useState<Feedback | null>(null)
-  const [cover, setCover] = usePreference<Cover>('et.drill.cover', 'none')
   const [goalText, setGoal] = usePreference<Goal>('et.drill.goal', '10')
   const goal = Number(goalText) || 10
   const [speak, setSpeak] = usePreference('et.drill.speak', true)
@@ -86,7 +86,7 @@ export function WriteDrill({ words, startIndex = 0 }: { words: DrillWord[]; star
 
       <div className="drill-grid">
         <section className="card drill-main">
-          <ModelCard w={w} cover={cover} reveal={feedback?.ok === false} />
+          <ModelCard w={w} />
 
           <form
             className="drill-form"
@@ -95,40 +95,33 @@ export function WriteDrill({ words, startIndex = 0 }: { words: DrillWord[]; star
               submit()
             }}
           >
-            <label className="drill-field">
+            <div className="drill-field">
               <span>Tiếng Anh</span>
-              <input
+              <SlotInput
                 ref={enRef}
-                className="input"
+                answer={w.word}
                 value={en}
-                onChange={(e) => setEn(e.target.value)}
+                onChange={setEn}
                 onKeyDown={onEnKey}
-                placeholder={cover === 'english' ? 'Viết từ tiếng Anh…' : w.word}
-                autoFocus
-                autoComplete="off"
-                autoCorrect="off"
-                autoCapitalize="none"
-                spellCheck={false}
+                label="Viết từ tiếng Anh"
+                lang="en"
                 enterKeyHint="next"
-                aria-label="Viết từ tiếng Anh"
+                autoFocus
               />
-            </label>
-            <label className="drill-field">
+            </div>
+            <div className="drill-field">
               <span>Nghĩa tiếng Việt</span>
-              <input
+              <SlotInput
                 ref={viRef}
-                className="input"
+                answer={slotMeaning(w.meaning_vi)}
                 value={vi}
-                onChange={(e) => setVi(e.target.value)}
+                onChange={setVi}
                 onKeyDown={onViKey}
-                placeholder={cover === 'meaning' ? 'Viết nghĩa…' : w.meaning_vi}
-                autoComplete="off"
-                autoCorrect="off"
-                spellCheck={false}
+                label="Viết nghĩa tiếng Việt"
+                lang="vi"
                 enterKeyHint="done"
-                aria-label="Viết nghĩa tiếng Việt"
               />
-            </label>
+            </div>
             <button className="btn primary drill-submit" type="submit" disabled={!en.trim() && !vi.trim()}>
               <Icon name="check" size={16} /> Viết
             </button>
@@ -144,9 +137,6 @@ export function WriteDrill({ words, startIndex = 0 }: { words: DrillWord[]; star
               <span className="muted">Tổng: {total} lần</span>
             </div>
             <ProgressBar value={Math.min(100, (done / goal) * 100)} />
-            {done >= goal && cover === 'none' && (
-              <p className="small muted">Thử “Che từ” để kiểm tra bạn đã nhớ cách viết chưa.</p>
-            )}
           </div>
 
           <div className="row drill-nav">
@@ -169,7 +159,6 @@ export function WriteDrill({ words, startIndex = 0 }: { words: DrillWord[]; star
 
         <aside className="card drill-side stack">
           <div className="stack" style={{ gap: 10 }}>
-            <Segmented label="Mẫu" value={cover} options={COVER_OPTIONS} onChange={setCover} />
             <Segmented label="Mục tiêu mỗi từ" value={goalText} options={GOAL_OPTIONS} onChange={setGoal} />
             <label className="toggle">
               <input type="checkbox" checked={speak} onChange={(e) => setSpeak(e.target.checked)} />
@@ -187,9 +176,11 @@ export function WriteDrill({ words, startIndex = 0 }: { words: DrillWord[]; star
   )
 }
 
+/** The meaning laid out as blanks: without "(...)" notes, single spaces. */
+const slotMeaning = (meaning: string) => meaning.replace(/\([^)]*\)/g, '').replace(/\s+/g, ' ').trim()
+
 function FeedbackLine({ feedback }: { feedback: Feedback | null }) {
-  if (!feedback)
-    return <p className="small muted drill-feedback">Gõ từ, Enter, gõ nghĩa, Enter. Viết bao nhiêu lần cũng được.</p>
+  if (!feedback) return null
   if (feedback.ok)
     return (
       <p className="small drill-feedback tone-good">
