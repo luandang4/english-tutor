@@ -1,22 +1,32 @@
 import { useEffect, useRef } from 'react'
 
-import { SpeakButton } from '../../components/ui'
+import { Icon, SpeakButton } from '../../components/ui'
 import type { DiffPart } from './check'
 import { wordKey } from './counts'
 import type { DrillWord, Line } from './model'
 
-/** The word to copy: spelling, sound, meaning and an example. */
-export function ModelCard({ w }: { w: DrillWord }) {
+/** The word to copy: spelling, sound, meaning and an example. The eye button hides all text (sound stays). */
+export function ModelCard({ w, hidden, onToggle }: { w: DrillWord; hidden: boolean; onToggle: () => void }) {
   return (
-    <div className="drill-model">
+    <div className={`drill-model${hidden ? ' masked' : ''}`}>
       <div className="drill-model-en">
-        <span className="drill-word">{w.word}</span>
-        <SpeakButton text={w.word} label={`Nghe “${w.word}”`} />
-        {w.ipa && <span className="ipa">{w.ipa}</span>}
-        {w.part_of_speech && <span className="pos">{w.part_of_speech}</span>}
+        {hidden ? <span className="drill-mask">• • •</span> : <span className="drill-word">{w.word}</span>}
+        <SpeakButton text={w.word} label="Nghe từ" />
+        {!hidden && w.ipa && <span className="ipa">{w.ipa}</span>}
+        {!hidden && w.part_of_speech && <span className="pos">{w.part_of_speech}</span>}
+        <button
+          type="button"
+          className="btn icon sm ghost drill-eye"
+          onClick={onToggle}
+          title={hidden ? 'Hiện từ và nghĩa' : 'Ẩn từ và nghĩa (tự nhớ để viết)'}
+          aria-label={hidden ? 'Hiện từ và nghĩa' : 'Ẩn từ và nghĩa'}
+          aria-pressed={hidden}
+        >
+          <Icon name={hidden ? 'eyeOff' : 'eye'} />
+        </button>
       </div>
-      <div className="drill-model-vi">{w.meaning_vi}</div>
-      {w.example_en && (
+      <div className="drill-model-vi">{hidden ? <span className="drill-mask">• • •</span> : w.meaning_vi}</div>
+      {!hidden && w.example_en && (
         <div className="drill-example">
           <span>{w.example_en}</span>
           {w.example_vi && <span className="muted">{w.example_vi}</span>}

@@ -29,6 +29,7 @@ export function WriteDrill({ words, startIndex = 0 }: { words: DrillWord[]; star
   const [goalText, setGoal] = usePreference<Goal>('et.drill.goal', '10')
   const goal = Number(goalText) || 10
   const [speak, setSpeak] = usePreference('et.drill.speak', true)
+  const [hideModel, setHideModel] = usePreference('et.drill.hideModel', false)
   const enRef = useRef<HTMLInputElement>(null)
   const viRef = useRef<HTMLInputElement>(null)
 
@@ -85,7 +86,7 @@ export function WriteDrill({ words, startIndex = 0 }: { words: DrillWord[]; star
 
       <div className="drill-grid">
         <section className="card drill-main">
-          <ModelCard w={w} />
+          <ModelCard w={w} hidden={hideModel} onToggle={() => setHideModel(!hideModel)} />
 
           <form
             className="drill-form"
