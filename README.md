@@ -1,24 +1,17 @@
 # English Tutor
 
-A personal AI English tutor for Vietnamese learners.
+A personal AI English tutor for Vietnamese learners: voice conversation with tutor "Emma", vocabulary,
+grammar, essay writing, spaced-repetition review and pronunciation scoring. Each learner has their own
+account and progress.
 
-| Feature | What it does | AI |
-|---|---|---|
-| 🎙️ **Conversation** | Talk to tutor "Emma" by voice in real-life scenarios or your own topic. Audio-reactive orb, live transcript, saved history | Gemini Live |
-| 📖 **Vocabulary** | Pick a preset topic (or type your own topic + wishes) and the AI writes 10 new words (IPA, examples, collocations, audio) plus exercises. Words go into the review deck | Gemini + Kokoro |
-| 🧩 **Grammar** | Pick a grammar point and get an explanation in Vietnamese, formulas, common mistakes Vietnamese learners make, and 10 graded exercises | Gemini |
-| ✏️ **Word writing drill** | Copy each new word and its Vietnamese meaning as many times as you like. Spelling is checked letter by letter. Open it from a vocabulary lesson, a word card or the review deck | — |
-| ✍️ **Writing** | Pick a task type and the AI writes the prompt, an outline and useful phrases. Each essay is graded on 4 criteria with highlighted corrections | Gemini |
-| 🗂️ **Review** | Flashcards with FSRS spaced repetition | — |
-| 🔊 **Pronunciation** | Record a word and get scores per word and per phoneme | **Azure Speech** |
-| 📊 **Dashboard** | Streak, progress per skill, 4-week activity, recent work | — |
-| 👤 **Accounts** | Sign up and log in. Each account has its own lessons, word deck, writing, conversations and progress | — |
-| 🛡️ **Admin** | Grant features per user, switch features off system-wide, daily limits per user, approve new sign-ups | — |
+## Tech
 
-Vendor rule: **Azure is used only for pronunciation scoring; Gemini handles everything else.** Word audio
-is free: the Google Translate voice (gTTS), then real speaker recordings (Wiktionary). Example sentences
-use **Kokoro-82M**, an open-source TTS model that runs locally. See
-[docs/TECHSTACK.md](docs/TECHSTACK.md) for the stack, architecture and folder structure.
+- **Backend:** Python 3.12, FastAPI, SQLAlchemy (async) + Alembic, SQLite
+- **Frontend:** React 19, TypeScript, Vite, TanStack Query
+- **AI:** Gemini (lessons, grading, live voice conversation); Azure Speech only for pronunciation scoring;
+  Kokoro-82M (local, open source) for example-sentence audio
+
+Details of the stack, architecture and folder structure: [docs/TECHSTACK.md](docs/TECHSTACK.md).
 
 ## Requirements
 
@@ -26,7 +19,7 @@ use **Kokoro-82M**, an open-source TTS model that runs locally. See
 - Node.js 20+
 - A `.env` file at the project root, created from `.env.example`:
   - `GEMINI_API_KEY` (required)
-  - `AZURE_SPEECH_KEY` and `AZURE_SPEECH_REGION` (optional; without them the pronunciation button is hidden)
+  - `AZURE_SPEECH_KEY` and `AZURE_SPEECH_REGION` (optional; without them pronunciation scoring is off)
 
 ## Run
 
@@ -41,16 +34,8 @@ For development with hot reload:
 make dev       # backend :8000 + Vite :5173 → open http://localhost:5173
 ```
 
-On startup the database (`data/app.db`, SQLite) is created and migrated automatically, and the preset
-topics are seeded. Open the app, choose **Đăng ký** and create an account. The **first** account
-automatically receives any data created before accounts existed and becomes **admin**. Sign-up is switched
-on / off in the admin panel (`/admin`); new accounts wait until an admin grants them features.
-
-**Production:** https://english-tutor.us.ci on AWS EC2, released with `make deploy` after pushing `main`.
-Infrastructure, scripts and the HTTPS step are in `docs/TECHSTACK.md` → *Deployment*.
-
-Every lesson has a **"Tạo bài tập mới"** button: Gemini writes a new exercise set on the same content
-(round 2, 3, …) without repeating earlier questions.
+The database (`data/app.db`) is created and migrated on startup. The first account you register becomes
+**admin**; later accounts wait for an admin to approve them in `/admin`.
 
 ## Tests
 
@@ -62,9 +47,7 @@ make smoke     # real Gemini Live conversation test (server must be running; use
 ## Notes
 
 - The microphone only works on `localhost` or over HTTPS.
-- Without headphones, keep **"Tắt mic khi giáo viên nói"** on so Emma doesn't hear herself.
-- Creating a lesson takes 10–60 s, depending on Gemini load (the free tier sometimes returns 503;
-  the app automatically falls back to another model).
-- On the free tier, Google may use your data to improve its products. Don't put sensitive
+- On Gemini's free tier, Google may use your data to improve its products. Don't put sensitive
   information in conversations.
-- After changing models: `make migration m="describe change"`.
+- Production: https://english-tutor.us.ci (AWS EC2). Deployment steps are in
+  [docs/TECHSTACK.md](docs/TECHSTACK.md).
