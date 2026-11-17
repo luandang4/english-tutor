@@ -5,15 +5,15 @@ import type { DiffPart } from './check'
 import { wordKey } from './counts'
 import type { DrillWord, Line } from './model'
 
-/** The word to copy: spelling, sound, meaning and an example. The eye button hides all text (sound stays). */
+/** The word to copy: spelling, sound, meaning and an example. The eye button blurs the word, meaning and example (sound, IPA and part of speech stay). */
 export function ModelCard({ w, hidden, onToggle }: { w: DrillWord; hidden: boolean; onToggle: () => void }) {
   return (
     <div className={`drill-model${hidden ? ' masked' : ''}`}>
       <div className="drill-model-en">
-        {hidden ? <span className="drill-mask">• • •</span> : <span className="drill-word">{w.word}</span>}
+        <span className="drill-word drill-blur">{w.word}</span>
         <SpeakButton text={w.word} label="Nghe từ" />
-        {!hidden && w.ipa && <span className="ipa">{w.ipa}</span>}
-        {!hidden && w.part_of_speech && <span className="pos">{w.part_of_speech}</span>}
+        {w.ipa && <span className="ipa">{w.ipa}</span>}
+        {w.part_of_speech && <span className="pos">{w.part_of_speech}</span>}
         <button
           type="button"
           className="btn icon sm ghost drill-eye"
@@ -25,9 +25,9 @@ export function ModelCard({ w, hidden, onToggle }: { w: DrillWord; hidden: boole
           <Icon name={hidden ? 'eyeOff' : 'eye'} />
         </button>
       </div>
-      <div className="drill-model-vi">{hidden ? <span className="drill-mask">• • •</span> : w.meaning_vi}</div>
-      {!hidden && w.example_en && (
-        <div className="drill-example">
+      <div className="drill-model-vi drill-blur">{w.meaning_vi}</div>
+      {w.example_en && (
+        <div className="drill-example drill-blur">
           <span>{w.example_en}</span>
           {w.example_vi && <span className="muted">{w.example_vi}</span>}
         </div>

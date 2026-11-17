@@ -19,8 +19,8 @@
 .drill-word { font-size: 1.9rem; font-weight: 800; letter-spacing: 0.01em; overflow-wrap: anywhere; }
 .drill-model-vi { font-size: 1.15rem; font-weight: 600; color: var(--primary-soft); }
 .drill-eye { margin-left: auto; }
-.drill-mask { font-size: 1.6rem; font-weight: 800; letter-spacing: 0.25em; color: var(--muted); }
-.drill-model-vi .drill-mask { font-size: 1.15rem; }
+.drill-blur { transition: filter 0.2s; }
+.drill-model.masked .drill-blur { filter: blur(9px); user-select: none; pointer-events: none; }
 .drill-model .ipa { color: var(--muted); }
 .drill-model .pos { font-size: 0.78rem; padding: 2px 8px; border-radius: 999px; background: var(--panel); border: 1px solid var(--border); color: var(--muted); }
 .drill-example { display: flex; flex-direction: column; gap: 2px; font-size: 0.88rem; margin-top: 4px; }
