@@ -1,6 +1,6 @@
 import type { Level, Meta, ScenarioOption } from '../../api/types'
 import { ScenarioBrief } from './ScenarioBrief'
-import { Segmented } from './Segmented'
+import { Segmented } from '../../components/ui/Segmented'
 import { CUSTOM, ENHANCEMENT_OPTIONS, type ConvoPreferences } from './preferences'
 
 /** Preset scenarios grouped by `group`, keeping the server's order. */

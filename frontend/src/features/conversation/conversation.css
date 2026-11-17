@@ -46,13 +46,6 @@
 .setup .toggle, .setup .brief, .custom-scenario { grid-column: 1 / -1; }
 .custom-scenario { display: grid; grid-template-columns: 1fr 1.4fr; gap: 10px; }
 
-.segmented { display: flex; padding: 3px; gap: 3px; border-radius: 12px; background: var(--panel-strong); border: 1px solid var(--border); }
-.segmented button {
-  flex: 1; min-width: 0; padding: 7px 8px; border: 0; border-radius: 9px; background: transparent; cursor: pointer;
-  font-size: 0.82rem; font-weight: 600; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-.segmented button.on { background: var(--accent-gradient); color: var(--on-primary); box-shadow: 0 2px 10px rgba(183, 148, 255, 0.3); }
-
 .brief { display: flex; flex-direction: column; gap: 4px; padding: 12px 14px; border-radius: var(--radius-sm); background: var(--panel-strong); border: 1px solid var(--border); }
 .brief-goal { font-weight: 600; }
 .brief-phrases summary { cursor: pointer; font-size: 0.85rem; font-weight: 600; color: var(--primary-soft); margin-top: 4px; }

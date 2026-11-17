@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 
 import {
   useAddCard,
@@ -432,6 +432,7 @@ type Sort = 'new' | 'due'
 
 function DeckList() {
   const cards = useCards(false)
+  const navigate = useNavigate()
   const del = useDeleteCard()
   const [q, setQ] = useState('')
   const [lesson, setLesson] = useState('all')
@@ -496,7 +497,17 @@ function DeckList() {
               <option value="due">Theo hạn ôn</option>
             </select>
           </div>
-          <span className="small muted">{filtered.length} từ</span>
+          <div className="row">
+            <span className="small muted spacer">{filtered.length} từ</span>
+            <button
+              className="btn sm"
+              onClick={() => navigate('/review/write', { state: { ids: filtered.map((c) => c.id) } })}
+              disabled={!filtered.length}
+              title="Chép lại từ và nghĩa của các từ đang lọc, không giới hạn số lần"
+            >
+              <Icon name="pen" size={16} /> Tập viết {filtered.length} từ này
+            </button>
+          </div>
           <div className="list">
             {filtered.map((c) => (
               <div key={c.id} className="list-item">

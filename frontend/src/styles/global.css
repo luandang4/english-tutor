@@ -335,6 +335,8 @@ a.list-item:hover { border-color: var(--border-strong); background: var(--panel-
 .word-head .word { font-size: 1.25rem; font-weight: 800; }
 .word-head .ipa { color: var(--primary-soft); font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 0.9rem; }
 .word-head .pos { font-size: 0.72rem; color: var(--muted); border: 1px solid var(--border); border-radius: 6px; padding: 1px 6px; }
+.word-actions { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 8px; }
+.word-actions > :first-child { flex: 1; min-width: 0; }
 .word-card .meaning { font-weight: 600; }
 .word-card .def { color: var(--muted); font-size: 0.9rem; }
 .example { border-left: 3px solid var(--primary); padding: 6px 12px; background: var(--panel); border-radius: 0 10px 10px 0; }
@@ -517,6 +519,13 @@ details.collapse > div { margin-top: 12px; }
 .toggle input:checked + .switch { background: var(--accent-gradient); border-color: transparent; }
 .toggle input:checked + .switch::after { transform: translateX(18px); background: #fff; }
 .toggle input:focus-visible + .switch { box-shadow: var(--glow); }
+/* small single-choice button group (components/ui/Segmented) */
+.segmented { display: flex; padding: 3px; gap: 3px; border-radius: 12px; background: var(--panel-strong); border: 1px solid var(--border); }
+.segmented button {
+  flex: 1; min-width: 0; padding: 7px 8px; border: 0; border-radius: 9px; background: transparent; cursor: pointer;
+  font-size: 0.82rem; font-weight: 600; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.segmented button.on { background: var(--accent-gradient); color: var(--on-primary); box-shadow: 0 2px 10px rgba(183, 148, 255, 0.3); }
 
 /* access control */
 .nav-link.locked { opacity: 0.55; }

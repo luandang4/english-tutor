@@ -69,6 +69,10 @@ export const router = createBrowserRouter([
         ),
       },
       {
+        path: '/vocabulary/lessons/:id/write',
+        lazy: gated('vocabulary', () => import('./features/drill/DrillPages').then((m) => m.LessonDrillPage)),
+      },
+      {
         path: '/grammar',
         lazy: gated('grammar', () =>
           import('./features/lessons/LessonHubPage').then((m) => () => <m.LessonHubPage skill="grammar" />),
@@ -101,6 +105,10 @@ export const router = createBrowserRouter([
       {
         path: '/review',
         lazy: () => import('./features/vocabulary/ReviewPage').then((m) => ({ Component: m.ReviewPage })),
+      },
+      {
+        path: '/review/write',
+        lazy: () => import('./features/drill/DrillPages').then((m) => ({ Component: m.DeckDrillPage })),
       },
       {
         path: '/admin',

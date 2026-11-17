@@ -1,9 +1,11 @@
+import { Link } from 'react-router-dom'
+
 import type { GrammarContent, VocabContent } from '../../api/types'
 import { PronounceButton } from '../../components/exercises/PronounceButton'
-import { SpeakButton } from '../../components/ui'
+import { Icon, SpeakButton } from '../../components/ui'
 import { Markdown } from '../../components/ui/Markdown'
 
-export function VocabBody({ content }: { content: VocabContent }) {
+export function VocabBody({ content, lessonId }: { content: VocabContent; lessonId: number }) {
   return (
     <section className="stack" style={{ gap: 16 }}>
       <h2 className="section-title">📖 Từ mới ({content.words.length})</h2>
@@ -34,7 +36,16 @@ export function VocabBody({ content }: { content: VocabContent }) {
                 ))}
               </div>
             )}
-            <PronounceButton text={w.word} />
+            <div className="word-actions">
+              <PronounceButton text={w.word} />
+              <Link
+                className="btn sm"
+                to={`/vocabulary/lessons/${lessonId}/write?word=${encodeURIComponent(w.word)}`}
+                title="Chép lại từ và nghĩa nhiều lần"
+              >
+                <Icon name="pen" size={16} /> Tập viết
+              </Link>
+            </div>
           </article>
         ))}
       </div>

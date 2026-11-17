@@ -217,7 +217,7 @@ frontend/
   src/
     api/                 typed client, DTO types, TanStack Query hooks
     components/          layout shell, ui kit, exercises, pronunciation
-    features/            dashboard, conversation, lessons (vocab+grammar), vocabulary review, writing
+    features/            dashboard, conversation, lessons (vocab+grammar), vocabulary review, drill (word writing practice, counts kept in localStorage), writing
     lib/                 audio (live session, recorder, TTS), formatting, preferences
     orb/                 audio-reactive canvas orb
     styles/global.css    design tokens + components

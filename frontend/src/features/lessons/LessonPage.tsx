@@ -102,10 +102,15 @@ export function LessonPage({ skill }: { skill: 'vocabulary' | 'grammar' }) {
         <Link className="btn sm" to={`/${skill}/lessons/${lesson.id}/quiz`} title="Đề tự động từ nội dung bài, không tốn lượt AI">
           <Icon name="refresh" size={16} /> Kiểm tra lại
         </Link>
+        {isVocab && (
+          <Link className="btn sm" to={`/vocabulary/lessons/${lesson.id}/write`} title="Chép lại từ và nghĩa nhiều lần, không giới hạn">
+            <Icon name="pen" size={16} /> Tập viết
+          </Link>
+        )}
         <AudioSourceSelect />
       </div>
 
-      {isVocab ? <VocabBody content={lesson.content as VocabContent} /> : <GrammarBody content={lesson.content as GrammarContent} />}
+      {isVocab ? <VocabBody content={lesson.content as VocabContent} lessonId={lesson.id} /> : <GrammarBody content={lesson.content as GrammarContent} />}
 
       <section className="stack" style={{ gap: 14 }} id="exercises">
         <div className="row">
