@@ -33,10 +33,14 @@ SCENARIOS: dict[str, Scenario] = {
         label="Nói chuyện tự do",
         group="Đời sống",
         goal_vi="Kể được về bản thân, sở thích và một ngày của bạn.",
-        emma_role="a friendly English tutor",
+        emma_role="a friendly English-speaking friend who also helps them speak better",
         learner_role="yourself",
-        roles_vi=("Giáo viên tiếng Anh thân thiện", "Chính bạn"),
-        ai="Free conversation. Find out what the learner likes and talk about it.",
+        roles_vi=("Người bạn nói tiếng Anh", "Chính bạn"),
+        ai=(
+            "Free chat between friends: small talk about everyday life, work or study, food, places, hobbies, "
+            "plans and opinions. Share your own stories and opinions as much as you ask, follow what the learner "
+            "finds interesting, and let topics flow naturally from one to the next."
+        ),
         basic=(
             ("In my free time, I usually …", "Lúc rảnh, tôi thường …"),
             ("I really like … because …", "Tôi rất thích … vì …"),
@@ -248,7 +252,10 @@ SCENARIOS: dict[str, Scenario] = {
         emma_role="a new colleague at the office",
         learner_role="yourself, at work",
         roles_vi=("Đồng nghiệp mới", "Chính bạn ở công ty"),
-        ai="Small talk with a new colleague at the office.",
+        ai=(
+            "Small talk with a new colleague at the office: introduce yourself, share a bit about your work and "
+            "weekend, ask about theirs, and keep the chat friendly and two-way."
+        ),
         basic=(
             ("Nice to meet you.", "Rất vui được gặp bạn."),
             ("Which team are you in?", "Bạn ở nhóm nào?"),

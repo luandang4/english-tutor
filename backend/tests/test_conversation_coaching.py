@@ -23,6 +23,22 @@ from app.services.conversation.tutor import (
 
 
 @pytest.mark.parametrize("level", list(LEVELS))
+def test_prompt_makes_emma_a_two_way_conversation_partner(level: str) -> None:
+    prompt = system_prompt(level, "x", False)
+    assert "TALK LIKE A REAL PERSON" in prompt and "HELP THEM SPEAK MORE" in prompt
+    assert "Mochi" in prompt  # Emma has a consistent life to share stories from
+    assert "Not every reply ends with a question" in prompt
+    assert "run the conversation like an interview" in prompt
+    assert "stay on the same question" in prompt and "Do not skip to a new question" in prompt
+
+
+def test_help_buttons_keep_emma_on_the_same_question() -> None:
+    assert "Stay on this question" in ACTION_INSTRUCTIONS["hint"]
+    assert "Do not ask a new question" in ACTION_INSTRUCTIONS["auto_hint"]
+    assert "wait for their answer to that same message" in ACTION_INSTRUCTIONS["translate"]
+
+
+@pytest.mark.parametrize("level", list(LEVELS))
 def test_prompt_has_help_ladder_cards_and_vietnamese_learner_errors(level: str) -> None:
     prompt = system_prompt(level, "x", False)
     assert "WHEN THE LEARNER IS STUCK (help ladder)" in prompt

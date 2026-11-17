@@ -24,7 +24,10 @@ OUTPUT_RATE = 24_000  # Gemini -> browser (PCM16 mono)
 
 VOICE = "Kore"  # the one tutor voice used everywhere
 
-OPENING_PROMPT = "(The learner just joined. Greet them briefly and start the lesson.)"
+OPENING_PROMPT = (
+    "(The learner just joined. Greet them warmly, say one or two friendly things about yourself (or set the "
+    "scene of the role-play), then start the conversation with one easy, open question.)"
+)
 
 # Silence that ends a learner turn. Beginners pause longer to find words, so Emma waits longer for them.
 # LIVE_END_OF_SPEECH_MS (if set) overrides this for every level.

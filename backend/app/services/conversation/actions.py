@@ -9,17 +9,18 @@ from app.services.conversation.tutor import HINT_TOOL, TRANSLATE_TOOL
 ACTION_INSTRUCTIONS: dict[str, str] = {
     "hint": (
         "(App signal: the learner pressed the Hint button — they do not know how to answer your last question. "
-        f"Use the help ladder: call {HINT_TOOL} for your last question now, then by voice give a sentence frame "
-        "and encourage them to try.)"
+        f"Use the help ladder: call {HINT_TOOL} for your last question now, then by voice reassure them, give a "
+        "short example answer of your own and a sentence frame, and encourage them to try. Stay on this question.)"
     ),
     "auto_hint": (
         "(App signal: the learner has been silent for a while after your question. Gently offer help, e.g. "
-        f"'Take your time. Do you need a hint?', and call {HINT_TOOL} for your question.)"
+        f"'Take your time. Do you need a hint?', call {HINT_TOOL} for your question, and make the question "
+        "easier (a choice between two answers). Do not ask a new question.)"
     ),
     "translate": (
         "(App signal: the learner pressed 'I don't understand'. Call "
         f"{TRANSLATE_TOOL} with what you last said and its Vietnamese translation, then say it again in simpler "
-        "English.)"
+        "English, check they follow, and wait for their answer to that same message.)"
     ),
     "repeat": (
         "(App signal: the learner pressed Repeat. Say your last message again with exactly the same content, "
