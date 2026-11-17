@@ -7,7 +7,7 @@ A personal AI English tutor for Vietnamese learners.
 | 🎙️ **Conversation** | Talk to tutor "Emma" by voice in real-life scenarios or your own topic. Audio-reactive orb, live transcript, saved history | Gemini Live |
 | 📖 **Vocabulary** | Pick a preset topic (or type your own topic + wishes) and the AI writes 10 new words (IPA, examples, collocations, audio) plus exercises. Words go into the review deck | Gemini + Kokoro |
 | 🧩 **Grammar** | Pick a grammar point and get an explanation in Vietnamese, formulas, common mistakes Vietnamese learners make, and 10 graded exercises | Gemini |
-| ✏️ **Word writing drill** | Copy each new word and its Vietnamese meaning as many times as you like into letter blanks (_ _ _). Spelling is checked letter by letter. Open it from a vocabulary lesson, a word card or the review deck | — |
+| ✏️ **Word writing drill** | Copy each new word and its Vietnamese meaning as many times as you like. Spelling is checked letter by letter. Open it from a vocabulary lesson, a word card or the review deck | — |
 | ✍️ **Writing** | Pick a task type and the AI writes the prompt, an outline and useful phrases. Each essay is graded on 4 criteria with highlighted corrections | Gemini |
 | 🗂️ **Review** | Flashcards with FSRS spaced repetition | — |
 | 🔊 **Pronunciation** | Record a word and get scores per word and per phoneme | **Azure Speech** |

@@ -8,7 +8,6 @@ import { checkEnglish, checkMeaning, letterDiff, type DiffPart } from './check'
 import { addCount, readCounts, wordKey } from './counts'
 import { GOAL_OPTIONS, type DrillWord, type Goal, type Line } from './model'
 import { ModelCard, Notebook, SpellingDiff, WordStrip } from './parts'
-import { SlotInput } from './SlotInput'
 import './drill.css'
 
 /** Result of the last line, shown under the inputs until the next one is written. */
@@ -95,33 +94,41 @@ export function WriteDrill({ words, startIndex = 0 }: { words: DrillWord[]; star
               submit()
             }}
           >
-            <div className="drill-field">
+            <label className="drill-field">
               <span>Tiếng Anh</span>
-              <SlotInput
+              <input
                 ref={enRef}
-                answer={w.word}
+                className="input"
                 value={en}
-                onChange={setEn}
+                onChange={(e) => setEn(e.target.value)}
                 onKeyDown={onEnKey}
-                label="Viết từ tiếng Anh"
-                lang="en"
+                autoComplete="off"
+                autoCorrect="off"
+                autoCapitalize="none"
+                spellCheck={false}
                 enterKeyHint="next"
+                lang="en"
+                aria-label="Viết từ tiếng Anh"
                 autoFocus
               />
-            </div>
-            <div className="drill-field">
+            </label>
+            <label className="drill-field">
               <span>Nghĩa tiếng Việt</span>
-              <SlotInput
+              <input
                 ref={viRef}
-                answer={slotMeaning(w.meaning_vi)}
+                className="input"
                 value={vi}
-                onChange={setVi}
+                onChange={(e) => setVi(e.target.value)}
                 onKeyDown={onViKey}
-                label="Viết nghĩa tiếng Việt"
-                lang="vi"
+                autoComplete="off"
+                autoCorrect="off"
+                autoCapitalize="none"
+                spellCheck={false}
                 enterKeyHint="done"
+                lang="vi"
+                aria-label="Viết nghĩa tiếng Việt"
               />
-            </div>
+            </label>
             <button className="btn primary drill-submit" type="submit" disabled={!en.trim() && !vi.trim()}>
               <Icon name="check" size={16} /> Viết
             </button>
@@ -175,9 +182,6 @@ export function WriteDrill({ words, startIndex = 0 }: { words: DrillWord[]; star
     </div>
   )
 }
-
-/** The meaning laid out as blanks: without "(...)" notes, single spaces. */
-const slotMeaning = (meaning: string) => meaning.replace(/\([^)]*\)/g, '').replace(/\s+/g, ' ').trim()
 
 function FeedbackLine({ feedback }: { feedback: Feedback | null }) {
   if (!feedback) return null
