@@ -248,9 +248,7 @@ s.fb-original { text-decoration-color: var(--danger); text-decoration-thickness:
 .history-filter { min-width: 200px; }
 
 /* ---------- light mode: the orb is pastel on a pale background, so it needs less dimming ---------- */
-@media (prefers-color-scheme: light) {
-  .convo:is(.view-live, .view-ended) .orb-wrap { opacity: 0.3; }
-}
+[data-theme="light"] .convo:is(.view-live, .view-ended) .orb-wrap { opacity: 0.3; }
 
 /* ---------- small screens ---------- */
 @media (max-width: 600px) {

@@ -36,37 +36,36 @@
   --sidebar: 248px;
   color-scheme: dark;
 }
-@media (prefers-color-scheme: light) {
-  :root {
-    --bg: #f7f2ff;
-    --bg-2: #e9ddff;
-    --panel: rgba(255, 255, 255, 0.66);
-    --panel-strong: rgba(255, 255, 255, 0.9);
-    --panel-solid: #ffffff;
-    --border: rgba(120, 80, 200, 0.2);
-    --border-strong: rgba(120, 80, 200, 0.38);
-    --text: #22183d;
-    --muted: #6b5f8f;
-    --primary-soft: #6d3fd1;
-    --primary: #8b5cf6;
-    --on-primary: #ffffff;
-    --accent: #e0489f;
-    --cool: #0a9fb3;
-    --good: #12a46d;
-    --ok: #c98a0b;
-    --danger: #d63a5e;
-    --good-bg: rgba(18, 164, 109, 0.1);
-    --ok-bg: rgba(201, 138, 11, 0.1);
-    --danger-bg: rgba(214, 58, 94, 0.08);
-    --user-bubble: linear-gradient(135deg, rgba(15, 181, 201, 0.12), rgba(124, 180, 255, 0.12));
-    --tutor-bubble: linear-gradient(135deg, rgba(183, 148, 255, 0.26), rgba(255, 122, 200, 0.12));
-    --glow: 0 0 22px rgba(139, 92, 246, 0.3);
-    --shadow: 0 10px 34px rgba(80, 50, 140, 0.12);
-    --aurora-a: rgba(183, 148, 255, 0.38);
-    --aurora-b: rgba(255, 150, 210, 0.26);
-    --aurora-c: rgba(120, 230, 255, 0.2);
-    color-scheme: light;
-  }
+/* Light theme: set by lib/theme.ts (user choice or the OS setting). */
+:root[data-theme="light"] {
+  --bg: #f7f2ff;
+  --bg-2: #e9ddff;
+  --panel: rgba(255, 255, 255, 0.66);
+  --panel-strong: rgba(255, 255, 255, 0.9);
+  --panel-solid: #ffffff;
+  --border: rgba(120, 80, 200, 0.2);
+  --border-strong: rgba(120, 80, 200, 0.38);
+  --text: #22183d;
+  --muted: #6b5f8f;
+  --primary-soft: #6d3fd1;
+  --primary: #8b5cf6;
+  --on-primary: #ffffff;
+  --accent: #e0489f;
+  --cool: #0a9fb3;
+  --good: #12a46d;
+  --ok: #c98a0b;
+  --danger: #d63a5e;
+  --good-bg: rgba(18, 164, 109, 0.1);
+  --ok-bg: rgba(201, 138, 11, 0.1);
+  --danger-bg: rgba(214, 58, 94, 0.08);
+  --user-bubble: linear-gradient(135deg, rgba(15, 181, 201, 0.12), rgba(124, 180, 255, 0.12));
+  --tutor-bubble: linear-gradient(135deg, rgba(183, 148, 255, 0.26), rgba(255, 122, 200, 0.12));
+  --glow: 0 0 22px rgba(139, 92, 246, 0.3);
+  --shadow: 0 10px 34px rgba(80, 50, 140, 0.12);
+  --aurora-a: rgba(183, 148, 255, 0.38);
+  --aurora-b: rgba(255, 150, 210, 0.26);
+  --aurora-c: rgba(120, 230, 255, 0.2);
+  color-scheme: light;
 }
 
 /* ==========================================================================
@@ -140,6 +139,8 @@ button, input, select, textarea { font: inherit; color: inherit; }
   margin-left: auto; min-width: 22px; padding: 0 7px; border-radius: 999px; font-size: 0.72rem; line-height: 20px;
   text-align: center; color: var(--on-primary); background: var(--accent-gradient);
 }
+.theme-toggle { margin-top: auto; width: 100%; border: 0; background: none; font: inherit; cursor: pointer; text-align: left; }
+.theme-toggle + .user-chip { margin-top: 4px; }
 .sidebar-foot { margin-top: auto; padding: 12px; font-size: 0.75rem; color: var(--muted); }
 .main { min-width: 0; overflow-y: auto; scrollbar-gutter: stable; }
 /* the conversation page scrolls inside itself: no page scrollbar and no reserved gutter */

@@ -1,6 +1,8 @@
 // Audio-reactive orb ("AI presence") drawn on a 2D canvas.
 // Modes: idle | connecting | listening | tutor | user. Feed it an AnalyserNode to react to sound.
 
+import { isDarkTheme } from '../lib/theme'
+
 export type OrbMode = 'idle' | 'connecting' | 'listening' | 'tutor' | 'user'
 type RGB = [number, number, number]
 
@@ -28,7 +30,6 @@ export class Orb {
   private ripples: { r: number; a: number }[] = []
   private spin = 0
   private readonly colors: [RGB, RGB, RGB] = PALETTES.idle.map((c) => [...c]) as [RGB, RGB, RGB]
-  private readonly dark = matchMedia('(prefers-color-scheme: dark)')
   private readonly reduced = matchMedia('(prefers-reduced-motion: reduce)').matches
   private readonly observer: ResizeObserver
   private raf = 0
@@ -122,7 +123,7 @@ export class Orb {
   private draw(dt: number): void {
     const { g, w, h, t, level, colors } = this
     const [core, mid, edge] = colors
-    const dark = this.dark.matches
+    const dark = isDarkTheme()
     const cx = w / 2
     const cy = h / 2
     const base = Math.min(w, h) * 0.22

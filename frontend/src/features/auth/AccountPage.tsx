@@ -4,6 +4,8 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useChangePassword, useLogout, useMe } from '../../api/hooks'
 import { AudioSourceSelect, ErrorBox, Icon, PageHeader, PasswordInput, Spinner, SpeakButton } from '../../components/ui'
 import { passwordStrongEnough } from '../../lib/password'
+import { THEME_OPTIONS, useTheme } from '../../lib/theme'
+import { Segmented } from '../../components/ui/Segmented'
 import { MyPlan } from './MyPlan'
 import { EmmaMemoryCard } from '../conversation/EmmaMemoryCard'
 import { SrsSettingsCard } from '../review/SrsSettingsCard'
@@ -16,6 +18,7 @@ export function AccountPage() {
   const navigate = useNavigate()
   const [current, setCurrent] = useState('')
   const [next, setNext] = useState('')
+  const [theme, , setTheme] = useTheme()
 
   if (!me) return null
   return (
@@ -45,6 +48,14 @@ export function AccountPage() {
           <Icon name="shield" /> <b className="spacer">Trang quản trị</b> <Icon name="arrowRight" size={16} />
         </Link>
       )}
+
+      <div className="card stack">
+        <div className="card-title" style={{ marginBottom: 0 }}>
+          <h3>Giao diện</h3>
+        </div>
+        <p className="small muted">Sáng, tối hoặc tự đổi theo cài đặt của máy. Lưu riêng cho trình duyệt này.</p>
+        <Segmented label="Chế độ màu" value={theme} options={THEME_OPTIONS} onChange={setTheme} />
+      </div>
 
       <div className="card stack">
         <div className="card-title" style={{ marginBottom: 0 }}>

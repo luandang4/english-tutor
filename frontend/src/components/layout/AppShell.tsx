@@ -3,6 +3,7 @@ import { Link, Navigate, NavLink, Outlet, useLocation } from 'react-router-dom'
 import { useDueCount, useMe } from '../../api/hooks'
 import type { Feature } from '../../api/types'
 import { contactText, useAccess } from '../../lib/access'
+import { useTheme } from '../../lib/theme'
 import '../../features/auth/auth.css'
 import { Loading } from '../ui'
 import { Icon, type IconName } from '../ui/Icon'
@@ -48,6 +49,18 @@ function NavItems({ compact }: { compact?: boolean }) {
   )
 }
 
+/** Sidebar switch between light and dark (the account page also offers "follow the OS"). */
+function ThemeToggle() {
+  const [, mode, setTheme] = useTheme()
+  const next = mode === 'dark' ? 'light' : 'dark'
+  return (
+    <button type="button" className="nav-link theme-toggle" onClick={() => setTheme(next)}>
+      <Icon name={mode === 'dark' ? 'sun' : 'moon'} />
+      <span>{mode === 'dark' ? 'Giao diện sáng' : 'Giao diện tối'}</span>
+    </button>
+  )
+}
+
 export function AppShell() {
   const { data: me, isPending } = useMe()
   const location = useLocation()
@@ -72,6 +85,7 @@ export function AppShell() {
           <nav className="stack" style={{ gap: 4 }} aria-label="Điều hướng chính">
             <NavItems />
           </nav>
+          <ThemeToggle />
           <Link to="/account" className="user-chip" title="Tài khoản">
             <span className="avatar">{me.display_name.charAt(0).toUpperCase()}</span>
             <span className="who">

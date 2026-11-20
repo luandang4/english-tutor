@@ -4,6 +4,7 @@ import { createRoot } from 'react-dom/client'
 import { RouterProvider } from 'react-router-dom'
 
 import { ApiError } from './api/client'
+import { initTheme } from './lib/theme'
 import { router } from './router'
 import './styles/global.css'
 
@@ -11,6 +12,8 @@ import './styles/global.css'
 const onError = (err: unknown) => {
   if (err instanceof ApiError && err.status === 401) queryClient.setQueryData(['me'], null)
 }
+
+initTheme()
 
 const queryClient: QueryClient = new QueryClient({
   queryCache: new QueryCache({ onError }),
