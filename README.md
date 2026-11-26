@@ -12,6 +12,7 @@ account and progress.
   Kokoro-82M (local, open source) for example-sentence audio
 
 Details of the stack, architecture and folder structure: [docs/TECHSTACK.md](docs/TECHSTACK.md).
+How the main parts work (Vietnamese, for developers): [docs/TECHNICAL_OVERVIEW.md](docs/TECHNICAL_OVERVIEW.md).
 
 ## Requirements
 
