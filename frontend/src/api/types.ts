@@ -254,19 +254,34 @@ export interface VocabContent {
   tips_vi: string[]
 }
 
-export interface GrammarFormula {
+export interface FormRow {
   label_vi: string
   pattern: string
   example_en: string
 }
 
+export type GrammarBlockKind = 'text' | 'forms' | 'compare' | 'table' | 'word_list' | 'tip'
+
+/** One building block of a grammar section; only the fields its `kind` uses are filled. */
+export interface GrammarBlock {
+  kind: GrammarBlockKind
+  title?: string
+  text_vi?: string
+  rows?: FormRow[]
+  columns?: { title: string; points_vi: string[]; example_en: string }[]
+  headers?: string[]
+  table_rows?: { cells: string[] }[]
+  words?: string[]
+}
+
 export interface GrammarSection {
   heading: string
-  explanation_vi: string
-  /** One row per structure. Lessons made before this field have `formula` instead. */
-  formulas?: GrammarFormula[]
-  formula?: string
+  blocks?: GrammarBlock[]
   examples: { en: string; vi: string }[]
+  /** Older lessons: free text plus `formulas` rows or a single `formula` string, instead of `blocks`. */
+  explanation_vi?: string
+  formulas?: FormRow[]
+  formula?: string
 }
 
 export interface GrammarContent {

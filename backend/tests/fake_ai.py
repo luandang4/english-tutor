@@ -11,8 +11,9 @@ from app.schemas.ai import (
     CriterionScore,
     ExerciseDraft,
     ExerciseSetDraft,
+    FormRow,
+    GrammarBlock,
     GrammarExample,
-    GrammarFormula,
     GrammarLessonDraft,
     GrammarSection,
     SummaryMistake,
@@ -132,13 +133,19 @@ class FakeAI:
                 sections=[
                     GrammarSection(
                         heading="1. Form",
-                        explanation_vi="**have/has** + V3",
-                        formulas=[
-                            GrammarFormula(
-                                label_vi="Khẳng định", pattern="S + have/has + V3", example_en="I have eaten."
-                            ),
-                            GrammarFormula(
-                                label_vi="Nghi vấn", pattern="Have/Has + S + V3?", example_en="Have you eaten?"
+                        blocks=[
+                            GrammarBlock(kind="text", text_vi="**have/has** + V3"),
+                            GrammarBlock(
+                                kind="forms",
+                                title="Hiện tại hoàn thành",
+                                rows=[
+                                    FormRow(
+                                        label_vi="Khẳng định", pattern="S + have/has + V3", example_en="I have eaten."
+                                    ),
+                                    FormRow(
+                                        label_vi="Nghi vấn", pattern="Have/Has + S + V3?", example_en="Have you eaten?"
+                                    ),
+                                ],
                             ),
                         ],
                         examples=[GrammarExample(en="I have eaten.", vi="Tôi đã ăn.")],

@@ -1,0 +1,60 @@
+/* Grammar lesson blocks: forms cards, compare columns, tables, word lists, tips.
+   Each grammar point gets a colour slot (point-0..3) so one tense keeps its colour across the lesson. */
+.point-0 { --point: var(--primary); }
+.point-1 { --point: var(--cool); }
+.point-2 { --point: var(--accent); }
+.point-3 { --point: var(--ok); }
+
+.g-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px; }
+.g-card {
+  display: flex; flex-direction: column; gap: 10px; min-width: 0; padding: 14px 16px; border-radius: var(--radius-sm);
+  border: 1px solid var(--border); border-top: 3px solid var(--point, var(--primary)); background: var(--panel);
+}
+.g-card-title { margin: 0; font-size: 1rem; color: var(--point, var(--primary)); }
+
+.g-rows { display: flex; flex-direction: column; gap: 10px; }
+.g-row { display: grid; grid-template-columns: 116px minmax(0, 1fr); gap: 10px; align-items: start; }
+.g-row.unlabelled { grid-template-columns: minmax(0, 1fr); }
+.g-label { display: inline-flex; align-items: center; gap: 6px; padding-top: 5px; font-size: 0.82rem; font-weight: 700; color: var(--muted); }
+.g-label b {
+  display: inline-grid; place-items: center; flex: none; width: 20px; height: 20px; border-radius: 50%; font-size: 0.8rem;
+  background: var(--panel-strong); color: var(--text);
+}
+.g-row.kind-positive .g-label b { background: var(--good-bg); color: var(--good); }
+.g-row.kind-negative .g-label b { background: var(--danger-bg); color: var(--danger); }
+.g-row.kind-question .g-label b { color: var(--cool); }
+.g-row-body { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-width: 0; }
+.g-pattern {
+  max-width: 100%; overflow-wrap: anywhere; padding: 4px 10px; border-radius: 8px; font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 0.9rem; font-weight: 600; color: var(--point, var(--accent)); background: var(--panel-strong);
+}
+.g-example { display: inline-flex; align-items: center; gap: 4px; font-size: 0.88rem; font-style: italic; color: var(--muted); }
+.g-example .btn { flex: none; }
+
+.g-points { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; }
+
+.g-table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius-sm); }
+.g-table { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
+.g-table caption { caption-side: top; text-align: left; padding: 10px 12px 0; font-weight: 700; }
+.g-table th, .g-table td { padding: 8px 12px; text-align: left; border-bottom: 1px solid var(--border); vertical-align: top; }
+.g-table th { font-size: 0.82rem; color: var(--muted); background: var(--panel-strong); }
+.g-table tr:last-child td { border-bottom: 0; }
+
+.g-words { display: flex; flex-direction: column; gap: 6px; }
+.g-words-title { font-size: 0.85rem; font-weight: 700; color: var(--point, var(--muted)); }
+.g-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.g-chip {
+  padding: 3px 10px; border-radius: 999px; font-size: 0.88rem; font-weight: 600;
+  border: 1px solid color-mix(in srgb, var(--point, var(--primary)) 45%, transparent);
+  background: color-mix(in srgb, var(--point, var(--primary)) 10%, transparent);
+}
+
+.g-tip { display: flex; gap: 10px; padding: 10px 14px; border-radius: var(--radius-sm); background: var(--ok-bg); border: 1px solid color-mix(in srgb, var(--ok) 35%, transparent); }
+.g-tip .md > :first-child { margin-top: 0; }
+.g-tip .md > :last-child { margin-bottom: 0; }
+
+@media (max-width: 600px) {
+  .g-grid { grid-template-columns: minmax(0, 1fr); }
+  .g-row { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+  .g-label { padding-top: 0; }
+}

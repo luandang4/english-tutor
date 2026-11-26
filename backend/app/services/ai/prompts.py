@@ -58,17 +58,28 @@ Requirements:
 - Exercises must be answerable from the lesson; vary which words are tested."""
 
 
+GRAMMAR_BLOCKS = """- Build every section ONLY from these blocks (the app draws each kind with a fixed layout):
+  text: 1-3 sentences of explanation. No headings, tables or long lists inside text.
+  forms: the structure of ONE grammar point (title = its name): rows "Khẳng định", "Phủ định", "Nghi vấn"
+    (the question pattern ends with "?"), plus "Trả lời ngắn" if useful. Two tenses = two forms blocks, never
+    mixed in one block. Each row has one pattern and its own short example.
+  compare: differences between 2-3 grammar points, one column each, same order of ideas in every column.
+  table: anything tabular (irregular verbs, spelling rules, time expressions with meanings).
+  word_list: signal words, stative verbs and other plain word lists (title = the grammar point they signal).
+  tip: one short note, warning or memory trick.
+- Use the same name for the same grammar point in every block (e.g. always "Hiện tại đơn"); the app colours
+  each point consistently. Patterns and word lists go in forms / word_list / table, never in text."""
+
+
 def grammar_lesson_prompt(topic: Topic, level: str) -> str:
     return f"""Create a grammar lesson.
 {_topic(topic, "Grammar point")}
 Learner level: {_level(level)}
 
 Requirements:
-- 2-4 sections: form, usage/meaning, signal words or contrasts as relevant. Explain like a good Vietnamese
-  teacher (concise, practical), with 2-3 examples and their Vietnamese translation.
-- formulas: one row per structure, never several patterns in one row. For a tense or sentence structure give
-  separate rows "Khẳng định", "Phủ định", "Nghi vấn" (the question pattern ends with "?"), plus a short
-  answer row if useful; for a contrast give one row per side. Each row has its own short example.
+- 2-5 sections (more only if the learner asked for more content, max 7), usually in this order: form, usage /
+  meaning, contrasts, signal words, special cases. Explain like a good Vietnamese teacher: concise, practical.
+{GRAMMAR_BLOCKS}
 - 3-4 common mistakes Vietnamese learners make with this point.
 - 10 exercises, increasing difficulty: 4 multiple_choice, 3 fill_blank (answers = every valid form),
   2 rewrite (transform a sentence using the target structure; answers = model rewrites),
@@ -118,8 +129,13 @@ EXERCISE_MIX = {
 
 
 def _formulas(section: dict) -> str:
-    """A section's structures as one line (lessons made before `formulas` existed keep a single `formula`)."""
-    rows = section.get("formulas")
+    """A section's structures as one line. Older lessons keep `formulas` rows or a single `formula` string."""
+    rows = [
+        {**r, "label_vi": f"{b.get('title', '')} {r.get('label_vi', '')}".strip()}
+        for b in section.get("blocks", [])
+        if b.get("kind") == "forms"
+        for r in b.get("rows", [])
+    ] or section.get("formulas")
     if rows is None:
         return section.get("formula", "")
     return "; ".join(f"{r.get('label_vi', '')}: {r.get('pattern', '')}" for r in rows)

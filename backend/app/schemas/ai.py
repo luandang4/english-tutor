@@ -69,19 +69,43 @@ class GrammarExample(BaseModel):
     vi: str
 
 
-class GrammarFormula(BaseModel):
-    label_vi: str = Field(description="Row name in Vietnamese, e.g. 'Khẳng định', 'Phủ định', 'Nghi vấn', 'Số ít'")
-    pattern: str = Field(description="ONE structure only, e.g. 'S + have/has + V3'. Never join several with '|'")
+class FormRow(BaseModel):
+    label_vi: str = Field(description="Row name in Vietnamese: 'Khẳng định', 'Phủ định', 'Nghi vấn', 'Trả lời ngắn'...")
+    pattern: str = Field(description="ONE structure, e.g. 'S + have/has + V3'. Never join several with '|'")
     example_en: str = Field(description="One short example sentence built from this pattern")
+
+
+class CompareColumn(BaseModel):
+    title: str = Field(description="Name of the grammar point this column is about, e.g. 'Hiện tại đơn'")
+    points_vi: list[str] = Field(description="2-4 short points in Vietnamese, same order of ideas in every column")
+    example_en: str = Field(description="One example sentence for this column")
+
+
+class TableRow(BaseModel):
+    cells: list[str]
+
+
+class GrammarBlock(BaseModel):
+    """One building block of a section. Fill only the fields its `kind` uses; leave the others empty."""
+
+    kind: Literal["text", "forms", "compare", "table", "word_list", "tip"]
+    title: str = Field(
+        default="",
+        description="forms/word_list: exact name of the grammar point it belongs to (same spelling everywhere). "
+        "table: table caption. Otherwise empty",
+    )
+    text_vi: str = Field(default="", description="text/tip: 1-3 sentences in Vietnamese, **bold** allowed")
+    rows: list[FormRow] = Field(default=[], description="forms: one row per sentence type of ONE grammar point")
+    columns: list[CompareColumn] = Field(default=[], description="compare: one column per grammar point (2-3)")
+    headers: list[str] = Field(default=[], description="table: column headers")
+    table_rows: list[TableRow] = Field(default=[], description="table: rows, same number of cells as headers")
+    words: list[str] = Field(default=[], description="word_list: short words/phrases (signal words, verbs...)")
 
 
 class GrammarSection(BaseModel):
     heading: str = Field(description="Section heading (Vietnamese, may contain English terms)")
-    explanation_vi: str = Field(description="Clear explanation in Vietnamese. Markdown allowed (bold, lists)")
-    formulas: list[GrammarFormula] = Field(
-        description="One row per sentence type (affirmative, negative, question...). Empty if not applicable"
-    )
-    examples: list[GrammarExample]
+    blocks: list[GrammarBlock] = Field(description="1-5 blocks, in reading order")
+    examples: list[GrammarExample] = Field(description="2-3 example sentences with Vietnamese translation")
 
 
 class CommonMistake(BaseModel):
