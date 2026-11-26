@@ -64,8 +64,11 @@ def grammar_lesson_prompt(topic: Topic, level: str) -> str:
 Learner level: {_level(level)}
 
 Requirements:
-- 2-4 sections: form, usage/meaning, signal words or contrasts as relevant. Each with a formula (if any)
-  and 2-3 examples with Vietnamese translation. Explain like a good Vietnamese teacher (concise, practical).
+- 2-4 sections: form, usage/meaning, signal words or contrasts as relevant. Explain like a good Vietnamese
+  teacher (concise, practical), with 2-3 examples and their Vietnamese translation.
+- formulas: one row per structure, never several patterns in one row. For a tense or sentence structure give
+  separate rows "Khẳng định", "Phủ định", "Nghi vấn" (the question pattern ends with "?"), plus a short
+  answer row if useful; for a contrast give one row per side. Each row has its own short example.
 - 3-4 common mistakes Vietnamese learners make with this point.
 - 10 exercises, increasing difficulty: 4 multiple_choice, 3 fill_blank (answers = every valid form),
   2 rewrite (transform a sentence using the target structure; answers = model rewrites),
@@ -114,6 +117,14 @@ EXERCISE_MIX = {
 }
 
 
+def _formulas(section: dict) -> str:
+    """A section's structures as one line (lessons made before `formulas` existed keep a single `formula`)."""
+    rows = section.get("formulas")
+    if rows is None:
+        return section.get("formula", "")
+    return "; ".join(f"{r.get('label_vi', '')}: {r.get('pattern', '')}" for r in rows)
+
+
 def new_exercises_prompt(*, skill: str, level: str, title: str, content: dict, past_questions: list[str]) -> str:
     if skill == "vocabulary":
         words = content.get("words", [])
@@ -121,7 +132,7 @@ def new_exercises_prompt(*, skill: str, level: str, title: str, content: dict, p
         target = "Target words (practise ONLY these):\n" + "\n".join(lines)
     else:
         target = "Grammar point and its sections:\n" + "\n".join(
-            f"- {s.get('heading', '')}: {s.get('formula', '')}" for s in content.get("sections", [])
+            f"- {s.get('heading', '')}: {_formulas(s)}" for s in content.get("sections", [])
         )
     past = "\n".join(f"- {q}" for q in past_questions[-60:]) or "(none)"
     return f"""Create a NEW practice set for an existing lesson the learner has already studied.

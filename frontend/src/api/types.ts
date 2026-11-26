@@ -254,10 +254,18 @@ export interface VocabContent {
   tips_vi: string[]
 }
 
+export interface GrammarFormula {
+  label_vi: string
+  pattern: string
+  example_en: string
+}
+
 export interface GrammarSection {
   heading: string
   explanation_vi: string
-  formula: string
+  /** One row per structure. Lessons made before this field have `formula` instead. */
+  formulas?: GrammarFormula[]
+  formula?: string
   examples: { en: string; vi: string }[]
 }
 

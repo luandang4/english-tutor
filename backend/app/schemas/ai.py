@@ -69,10 +69,18 @@ class GrammarExample(BaseModel):
     vi: str
 
 
+class GrammarFormula(BaseModel):
+    label_vi: str = Field(description="Row name in Vietnamese, e.g. 'Khẳng định', 'Phủ định', 'Nghi vấn', 'Số ít'")
+    pattern: str = Field(description="ONE structure only, e.g. 'S + have/has + V3'. Never join several with '|'")
+    example_en: str = Field(description="One short example sentence built from this pattern")
+
+
 class GrammarSection(BaseModel):
     heading: str = Field(description="Section heading (Vietnamese, may contain English terms)")
     explanation_vi: str = Field(description="Clear explanation in Vietnamese. Markdown allowed (bold, lists)")
-    formula: str = Field(description="Structure/formula, e.g. 'S + have/has + V3'. Empty if not applicable")
+    formulas: list[GrammarFormula] = Field(
+        description="One row per sentence type (affirmative, negative, question...). Empty if not applicable"
+    )
     examples: list[GrammarExample]
 
 

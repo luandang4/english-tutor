@@ -1,9 +1,10 @@
 import { Link } from 'react-router-dom'
 
-import type { GrammarContent, VocabContent } from '../../api/types'
+import type { GrammarContent, GrammarSection, VocabContent } from '../../api/types'
 import { PronounceButton } from '../../components/exercises/PronounceButton'
 import { Icon, SpeakButton } from '../../components/ui'
 import { Markdown } from '../../components/ui/Markdown'
+import { formulaRows } from './formulas'
 
 export function VocabBody({ content, lessonId }: { content: VocabContent; lessonId: number }) {
   return (
@@ -65,6 +66,32 @@ export function VocabBody({ content, lessonId }: { content: VocabContent; lesson
   )
 }
 
+const KIND_SIGN = { positive: '+', negative: '−', question: '?', other: '' }
+
+/** Structures of a section as a small table: one row per sentence type, each with its own example. */
+function Formulas({ section }: { section: GrammarSection }) {
+  const rows = formulaRows(section)
+  if (!rows.length) return null
+  return (
+    <div className="formulas">
+      {rows.map((r, i) => (
+        <div key={i} className={`formula-row kind-${r.kind}`}>
+          {r.label_vi && (
+            <span className="formula-label">
+              {KIND_SIGN[r.kind] && <b aria-hidden="true">{KIND_SIGN[r.kind]}</b>}
+              {r.label_vi}
+            </span>
+          )}
+          <div className="formula-body">
+            <code className="formula">{r.pattern}</code>
+            {r.example_en && <span className="formula-example">{r.example_en}</span>}
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 export function GrammarBody({ content }: { content: GrammarContent }) {
   return (
     <section className="stack" style={{ gap: 16 }}>
@@ -74,11 +101,7 @@ export function GrammarBody({ content }: { content: GrammarContent }) {
             <span className="exercise-num">{i + 1}</span>
             {s.heading.replace(/^\s*\d+\s*[.)]\s*/, '')}
           </h2>
-          {s.formula && (
-            <div>
-              <span className="formula">{s.formula}</span>
-            </div>
-          )}
+          <Formulas section={s} />
           <Markdown>{s.explanation_vi}</Markdown>
           <div className="stack" style={{ gap: 8 }}>
             {s.examples.map((ex, j) => (

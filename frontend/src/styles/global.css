@@ -350,6 +350,25 @@ a.list-item:hover { border-color: var(--border-strong); background: var(--panel-
   padding: 8px 14px; border-radius: 10px; border: 1px dashed rgba(255, 122, 200, 0.5); color: var(--accent);
   background: rgba(255, 122, 200, 0.06);
 }
+.formulas { display: flex; flex-direction: column; gap: 8px; }
+.formula-row { display: grid; grid-template-columns: 128px minmax(0, 1fr); gap: 12px; align-items: start; }
+.formula-row:not(:has(.formula-label)) { grid-template-columns: minmax(0, 1fr); }
+.formula-label {
+  display: inline-flex; align-items: center; gap: 6px; padding-top: 8px; font-size: 0.85rem; font-weight: 700; color: var(--muted);
+}
+.formula-label b {
+  display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; font-size: 0.8rem;
+  background: var(--panel-strong); color: var(--text);
+}
+.formula-row.kind-positive .formula-label b { background: var(--good-bg); color: var(--good); }
+.formula-row.kind-negative .formula-label b { background: var(--danger-bg); color: var(--danger); }
+.formula-row.kind-question .formula-label b { background: var(--panel-strong); color: var(--cool); }
+.formula-body { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; min-width: 0; }
+.formula-example { font-size: 0.88rem; color: var(--muted); font-style: italic; padding-left: 2px; }
+@media (max-width: 600px) {
+  .formula-row { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+  .formula-label { padding-top: 0; }
+}
 .mistake { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .mistake .wrong, .mistake .right { padding: 8px 12px; border-radius: 10px; font-weight: 600; }
 .mistake .wrong { background: var(--danger-bg); color: var(--danger); text-decoration: line-through; text-decoration-thickness: 1px; }
