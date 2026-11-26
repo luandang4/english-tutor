@@ -26,19 +26,34 @@ if (typeof window !== 'undefined') {
 
 type Note = { freq: number; at: number; length: number; type: OscillatorType; volume: number }
 
-function play(notes: Note[], lowpass?: number): void {
+type Options = { lowpass?: number; echo?: number }
+
+/** A short decaying echo (delay in seconds) adds a little shimmer. */
+function addEcho(ac: AudioContext, from: AudioNode, delay: number): void {
+  const d = ac.createDelay()
+  const feedback = ac.createGain()
+  const wet = ac.createGain()
+  d.delayTime.value = delay
+  feedback.gain.value = 0.3
+  wet.gain.value = 0.35
+  from.connect(d)
+  d.connect(feedback).connect(d)
+  d.connect(wet).connect(ac.destination)
+}
+
+function play(notes: Note[], { lowpass, echo }: Options = {}): void {
   const ac = context()
   if (!ac) return
   const out = ac.createGain()
-  out.gain.value = 1
+  let tail: AudioNode = out
   if (lowpass) {
     const filter = ac.createBiquadFilter()
     filter.type = 'lowpass'
     filter.frequency.value = lowpass
-    out.connect(filter).connect(ac.destination)
-  } else {
-    out.connect(ac.destination)
+    tail = out.connect(filter)
   }
+  tail.connect(ac.destination)
+  if (echo) addEcho(ac, tail, echo)
   const now = ac.currentTime + 0.01
   for (const n of notes) {
     const osc = ac.createOscillator()
@@ -56,13 +71,17 @@ function play(notes: Note[], lowpass?: number): void {
   }
 }
 
-/** Bright two-note rise (C6 -> G6). */
+/** "Sparkle": four quick rising notes C6 E6 G6 C7 with a light echo. */
 export function playCorrect(): void {
-  play([
-    { freq: 1046.5, at: 0, length: 0.18, type: 'sine', volume: 0.16 },
-    { freq: 1568, at: 0.09, length: 0.32, type: 'sine', volume: 0.16 },
-    { freq: 3136, at: 0.09, length: 0.12, type: 'sine', volume: 0.025 }, // faint overtone for sparkle
-  ])
+  play(
+    [
+      { freq: 1046.5, at: 0, length: 0.12, type: 'sine', volume: 0.09 },
+      { freq: 1318.5, at: 0.05, length: 0.12, type: 'sine', volume: 0.09 },
+      { freq: 1568, at: 0.1, length: 0.12, type: 'sine', volume: 0.09 },
+      { freq: 2093, at: 0.15, length: 0.35, type: 'sine', volume: 0.1 },
+    ],
+    { echo: 0.09 },
+  )
 }
 
 /** Soft low two-note fall (E4 -> C4), filtered so it is not harsh. */
@@ -72,7 +91,7 @@ export function playWrong(): void {
       { freq: 329.6, at: 0, length: 0.16, type: 'triangle', volume: 0.2 },
       { freq: 261.6, at: 0.13, length: 0.28, type: 'triangle', volume: 0.2 },
     ],
-    1400,
+    { lowpass: 1400 },
   )
 }
 
