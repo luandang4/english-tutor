@@ -2,6 +2,7 @@ import { useState } from 'react'
 
 import { useSubmitAttempt } from '../../api/hooks'
 import type { Exercise } from '../../api/types'
+import { playResult } from '../../lib/audio/sfx'
 import { EXERCISE_LABEL } from '../../lib/format'
 import { ErrorBox, Icon, Spinner } from '../ui'
 
@@ -35,7 +36,8 @@ export function ExerciseCard({ lessonId, exercise, index }: { lessonId: number; 
     submit.mutate(
       { exerciseId: exercise.id, answer: value.trim() },
       {
-        onSuccess: () => {
+        onSuccess: (r) => {
+          playResult(!!r.exercise.result?.is_correct)
           setRetrying(false)
           setAnswer('')
         },

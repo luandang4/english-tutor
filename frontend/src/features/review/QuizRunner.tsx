@@ -2,6 +2,7 @@ import { useState } from 'react'
 
 import type { AnswerIn, AnswerOut, QuizQuestion } from '../../api/types'
 import { ErrorBox, ProgressBar } from '../../components/ui'
+import { playResult } from '../../lib/audio/sfx'
 import { QuestionView, type Submit } from './QuestionView'
 import { requeue, type Entry, type FirstResults } from './queue'
 import './review.css'
@@ -37,6 +38,7 @@ export function QuizRunner({
     setError(null)
     answer({ question_id: entry.question.id, answer: value, hinted, requeued: entry.requeued })
       .then((out) => {
+        playResult(out.result !== 'wrong') // "near" (small typo) counts as a pass
         setOutcome(out)
         if (!(entry.question.id in results)) {
           const label = out.word?.word ?? entry.question.prompt

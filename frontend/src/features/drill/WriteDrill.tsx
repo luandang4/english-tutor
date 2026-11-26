@@ -2,6 +2,7 @@ import { useRef, useState, type KeyboardEvent } from 'react'
 
 import { Icon, ProgressBar } from '../../components/ui'
 import { Segmented } from '../../components/ui/Segmented'
+import { playResult } from '../../lib/audio/sfx'
 import { playText } from '../../lib/audio/tts'
 import { usePreference } from '../../lib/preferences'
 import { checkEnglish, checkMeaning, letterDiff, type DiffPart } from './check'
@@ -53,10 +54,12 @@ export function WriteDrill({ words, startIndex = 0 }: { words: DrillWord[]; star
     const viV = checkMeaning(vi, w.meaning_vi)
     const ok = enV === 'right' && (viV === 'right' || viV === 'close')
     setSession((s) => ({ ...s, [key]: [...(s[key] ?? []), { en: en.trim(), vi: vi.trim(), ok }] }))
+    playResult(ok)
     if (ok) {
       setTotals(addCount(w.word))
       setFeedback({ ok: true, close: viV === 'close' })
-      if (speak) playText(w.word).catch(() => {})
+      // let the chime finish before the word is read out
+      if (speak) setTimeout(() => playText(w.word).catch(() => {}), 350)
     } else {
       setFeedback({
         ok: false,
