@@ -29,7 +29,7 @@ class Settings(BaseSettings):
     ai_timeout_seconds: float = 120.0
 
     # Pronunciation audio (free sources, see services/speech/tts.py). Order = priority.
-    tts_word_sources: list[str] = ["google", "dictionary", "kokoro"]
+    tts_word_sources: list[str] = ["google", "kokoro"]
     tts_sentence_sources: list[str] = ["kokoro", "google"]
     tts_prefetch: bool = True  # cache word audio as soon as a vocabulary lesson is generated
     # Kokoro-82M (local, offline)

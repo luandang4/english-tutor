@@ -17,7 +17,7 @@
 |---|---|
 | **Gemini** | mọi việc AI: hội thoại giọng nói (Gemini Live, giọng `Kore`), soạn bài học / bài tập / đề viết, chấm bài, tổng kết buổi hội thoại |
 | **Azure Speech** | chỉ chấm phát âm |
-| **Âm thanh miễn phí** | từ: gTTS → bản ghi Wiktionary → Kokoro; câu: Kokoro-82M chạy local. Cache ở `data/tts/` (production: S3) |
+| **Âm thanh miễn phí** | từ: gTTS → Kokoro; câu: Kokoro-82M chạy local. Cache ở `data/tts/` (production: S3) |
 
 Gọi Gemini (trừ Live) đi qua `services/ai/client.py` (chuỗi model dự phòng, chỉnh trong `.env`); gọi Azure đi
 qua `services/speech/azure.py`.
@@ -28,7 +28,7 @@ qua `services/speech/azure.py`.
 Trình duyệt (React SPA)
  ├─ REST /api/*  ───────────────► routes ─► services ─► SQLAlchemy ─► SQLite / Postgres
  │                                            ├─► Gemini (soạn / chấm, JSON schema)
- │                                            ├─► gTTS / Wiktionary / Kokoro
+ │                                            ├─► gTTS / Kokoro
  │                                            └─► Azure (chấm phát âm)
  └─ WebSocket /ws/conversation ─► routes/live.py ─► Gemini Live (âm thanh hai chiều)
 ```

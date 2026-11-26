@@ -1,12 +1,11 @@
 """Pronunciation audio for words and example sentences — free sources only, no paid AI.
 
 Source chain (first one that works wins; result cached on disk):
-- single words / short phrases: Google Translate voice (gTTS, consistent dictionary-style reading)
-  -> human recording (Wiktionary / Commons; volunteer recordings, intonation varies) -> Kokoro-82M
+- single words / short phrases: Google Translate voice (gTTS, consistent dictionary-style reading) -> Kokoro-82M
 - sentences: Kokoro-82M (local, natural sentence prosody) -> Google Translate voice
 
 Kokoro alone mis-stresses isolated words (it is trained on sentences), hence the word chain.
-Sources: en.wiktionary.org API · github.com/pndurette/gTTS · github.com/thewh1teagle/kokoro-onnx
+Sources: github.com/pndurette/gTTS · github.com/thewh1teagle/kokoro-onnx
 """
 
 import asyncio
@@ -18,7 +17,6 @@ import time
 import wave
 from collections.abc import Awaitable, Callable
 
-import httpx
 import numpy as np
 
 from app.core.config import get_settings
@@ -86,50 +84,6 @@ async def _kokoro(text: str) -> tuple[bytes, str]:
         return await asyncio.to_thread(_kokoro_sync, text), ".wav"
 
 
-# ---------- human recording (Wiktionary / Wikimedia Commons, CC-licensed) ----------
-WIKI_HEADERS = {"User-Agent": "EnglishTutor/0.2 (personal learning app)"}
-AUDIO_EXT = (".ogg", ".oga", ".mp3", ".wav", ".flac", ".opus")
-
-
-async def _dictionary(text: str) -> tuple[bytes, str]:
-    """Real speaker recording of a single word, preferring US then UK English (MP3 transcode from Commons)."""
-    word = text.strip().lower()
-    if " " in word:
-        raise TTSError("phrases have no recordings")
-    async with httpx.AsyncClient(timeout=8, follow_redirects=True, headers=WIKI_HEADERS) as client:
-        page = await client.get(
-            "https://en.wiktionary.org/w/api.php",
-            params={"action": "parse", "page": word, "prop": "images", "format": "json", "formatversion": 2},
-        )
-        files = [
-            f
-            for f in page.json().get("parse", {}).get("images", [])
-            if f.lower().startswith("en-") and f.lower().endswith(AUDIO_EXT)
-        ]
-        if not files:
-            raise TTSError("no recording")
-        files.sort(key=lambda f: (not f.lower().startswith("en-us"), not f.lower().startswith(("en-uk", "en-gb"))))
-        info = await client.get(
-            "https://commons.wikimedia.org/w/api.php",
-            params={
-                "action": "query",
-                "titles": f"File:{files[0]}",
-                "prop": "videoinfo",
-                "viprop": "url|derivatives",
-                "format": "json",
-                "formatversion": 2,
-            },
-        )
-        vi = (info.json()["query"]["pages"][0].get("videoinfo") or [{}])[0]
-        mp3 = [d["src"] for d in vi.get("derivatives", []) if d.get("type", "").startswith("audio/mpeg")]
-        if not mp3:
-            raise TTSError("no mp3 transcode")
-        audio = await client.get(mp3[0])
-        if audio.status_code != 200 or not audio.content:
-            raise TTSError("recording download failed")
-        return audio.content, ".mp3"
-
-
 # ---------- Google Translate voice (gTTS) ----------
 def _google_sync(text: str) -> bytes:
     from gtts import gTTS
@@ -144,7 +98,6 @@ async def _google(text: str) -> tuple[bytes, str]:
 
 
 SOURCES: dict[str, Callable[[str], Awaitable[tuple[bytes, str]]]] = {
-    "dictionary": _dictionary,
     "google": _google,
     "kokoro": _kokoro,
 }
@@ -157,7 +110,8 @@ def _chain(text: str, preferred: str | None = None) -> list[str]:
     """Default chain for the text, or the learner's chosen source first with the default chain as fallback."""
     s = get_settings()
     short = len(text.split()) <= SHORT_MAX_WORDS and not re.search(r"[.!?,;]", text)
-    default = s.tts_word_sources if short else s.tts_sentence_sources
+    # unknown names (e.g. a removed source still listed in .env) are skipped
+    default = [n for n in (s.tts_word_sources if short else s.tts_sentence_sources) if n in SOURCES]
     if preferred in SOURCES:
         return [preferred, *(n for n in default if n != preferred)]
     return default

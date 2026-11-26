@@ -25,6 +25,6 @@ async def word_audio(text: str, source: str | None, cache: str = "private") -> R
 async def tts(
     _: CurrentUser,
     text: str = Query(min_length=1, max_length=300),
-    source: str | None = Query(None, pattern="^(auto|google|dictionary|kokoro)$"),
+    source: str | None = Query(None, pattern="^(auto|google|kokoro)$"),
 ) -> Response:
     return await word_audio(text, source, cache="public")

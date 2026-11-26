@@ -188,7 +188,7 @@ async def word_audio_(
     index: int,
     session: SessionDep,
     user: CurrentUser,
-    source: str | None = Query(None, pattern="^(auto|google|dictionary|kokoro)$"),
+    source: str | None = Query(None, pattern="^(auto|google|kokoro)$"),
 ) -> Response:
     """Audio of one lesson word, addressed by position (listening questions must not reveal the word)."""
     lesson = await _quiz_lesson(session, lesson_id, user)

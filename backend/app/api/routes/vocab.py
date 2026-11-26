@@ -124,7 +124,7 @@ async def card_audio(
     card_id: int,
     session: SessionDep,
     user: CurrentUser,
-    source: str | None = Query(None, pattern="^(auto|google|dictionary|kokoro)$"),
+    source: str | None = Query(None, pattern="^(auto|google|kokoro)$"),
 ) -> Response:
     """The word's audio for listening questions (the word itself is not in the question)."""
     row = await get_owned(session, VocabCard, card_id, user, "Thẻ từ")

@@ -2,8 +2,8 @@ from app.services.speech.tts import _chain
 
 
 def test_words_and_sentences_use_different_sources() -> None:
-    assert _chain("itinerary") == ["google", "dictionary", "kokoro"]
-    assert _chain("boarding pass") == ["google", "dictionary", "kokoro"]
+    assert _chain("itinerary") == ["google", "kokoro"]
+    assert _chain("boarding pass") == ["google", "kokoro"]
     assert _chain("Let the soup simmer for twenty minutes.") == ["kokoro", "google"]
 
 
@@ -23,14 +23,14 @@ async def test_fallback_audio_is_upgraded_when_preferred_source_recovers(tmp_pat
             raise RuntimeError("rate limited")
         return b"G", ".mp3"
 
-    async def dictionary(text):  # noqa: ANN001, ANN202
-        return b"D", ".mp3"
+    async def kokoro(text):  # noqa: ANN001, ANN202
+        return b"K", ".wav"
 
     monkeypatch.setitem(tts.SOURCES, "google", google)
-    monkeypatch.setitem(tts.SOURCES, "dictionary", dictionary)
+    monkeypatch.setitem(tts.SOURCES, "kokoro", kokoro)
 
-    assert (await tts.synthesize("season"))[2] == "dictionary"  # google down -> fallback
-    assert (await tts.synthesize("season"))[2] == "dictionary"  # fresh fallback served from cache
+    assert (await tts.synthesize("season"))[2] == "kokoro"  # google down -> fallback
+    assert (await tts.synthesize("season"))[2] == "kokoro"  # fresh fallback served from cache
     old = time.time() - tts.FALLBACK_RETRY_SECONDS - 1
     for f in tmp_path.iterdir():
         os.utime(f, (old, old))
@@ -39,10 +39,17 @@ async def test_fallback_audio_is_upgraded_when_preferred_source_recovers(tmp_pat
 
 
 def test_chosen_source_goes_first_with_default_chain_as_fallback() -> None:
-    assert _chain("season", "kokoro") == ["kokoro", "google", "dictionary"]
-    assert _chain("season", "dictionary") == ["dictionary", "google", "kokoro"]
+    assert _chain("season", "kokoro") == ["kokoro", "google"]
+    assert _chain("season", "dictionary") == ["google", "kokoro"]  # removed source: default chain
     assert _chain("Let the soup simmer.", "google") == ["google", "kokoro"]
-    assert _chain("season", None) == ["google", "dictionary", "kokoro"]
+    assert _chain("season", None) == ["google", "kokoro"]
+
+
+def test_sources_from_env_that_no_longer_exist_are_skipped(monkeypatch) -> None:
+    from app.core.config import get_settings
+
+    monkeypatch.setattr(get_settings(), "tts_word_sources", ["google", "dictionary", "kokoro"])
+    assert _chain("season") == ["google", "kokoro"]
 
 
 async def test_cache_cleanup_removes_old_files_then_oldest_over_size(tmp_path) -> None:
