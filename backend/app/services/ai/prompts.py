@@ -65,7 +65,8 @@ GRAMMAR_BLOCKS = """- Build every section ONLY from these blocks (the app draws 
     mixed in one block. Each row has one pattern and its own short example.
   compare: differences between 2-3 grammar points, one column each, same order of ideas in every column.
   table: anything tabular (irregular verbs, spelling rules, time expressions with meanings).
-  word_list: signal words, stative verbs and other plain word lists (title = the grammar point they signal).
+  word_list: signal words, stative verbs and other plain word lists. title says what the list is, e.g.
+    "Dấu hiệu Hiện tại đơn", "Động từ trạng thái".
   tip: one short note, warning or memory trick.
 - Use the same name for the same grammar point in every block (e.g. always "Hiện tại đơn"); the app colours
   each point consistently. Patterns and word lists go in forms / word_list / table, never in text."""

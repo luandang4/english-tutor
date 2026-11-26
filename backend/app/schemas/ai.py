@@ -91,8 +91,8 @@ class GrammarBlock(BaseModel):
     kind: Literal["text", "forms", "compare", "table", "word_list", "tip"]
     title: str = Field(
         default="",
-        description="forms/word_list: exact name of the grammar point it belongs to (same spelling everywhere). "
-        "table: table caption. Otherwise empty",
+        description="forms: exact name of the grammar point (same spelling everywhere). "
+        "word_list: what the list is, e.g. 'Dấu hiệu Hiện tại đơn'. table: caption. Otherwise empty",
     )
     text_vi: str = Field(default="", description="text/tip: 1-3 sentences in Vietnamese, **bold** allowed")
     rows: list[FormRow] = Field(default=[], description="forms: one row per sentence type of ONE grammar point")
