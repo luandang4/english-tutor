@@ -1,46 +1,67 @@
 import { useEffect, useState } from 'react'
+import type { LiveAction } from '../../lib/audio/live-session'
 
-export const SILENCE_HINT_MS = 6000
+/** Learner silence before each nudge, counted from the end of Emma's audio (or the last mic sound). */
+export const SILENCE_NUDGE_MS = [6000, 10000]
 
-const endsWithQuestion = (text: string) => /\?["'”’)]*$/.test(text.trim())
+export type SilenceNudge = Extract<LiveAction, 'auto_hint' | 'check_in'>
+
+const asksQuestion = (text: string) => text.includes('?')
+
+/** First nudge after a question offers a hint; otherwise (or the second time) Emma checks in and asks again. */
+const nudgeFor = (tutorText: string, count: number): SilenceNudge =>
+  count === 0 && asksQuestion(tutorText) ? 'auto_hint' : 'check_in'
 
 /** Timer logic, independent of React so one instance can live for the component's lifetime. */
-function createSilenceHint(fire: () => void) {
+function createSilenceHint(fire: (nudge: SilenceNudge) => void) {
   let timer: number | null = null
-  let firedSinceLearner = false
+  let deadline = 0
+  let nudges = 0 // nudges since the learner last spoke
+
   const cancel = () => {
     if (timer !== null) window.clearTimeout(timer)
     timer = null
   }
+  const wait = (nudge: SilenceNudge) => {
+    timer = window.setTimeout(() => {
+      timer = null
+      const left = deadline - performance.now()
+      if (left > 50) return wait(nudge) // a mic sound pushed the deadline back
+      nudges += 1
+      fire(nudge)
+    }, deadline - performance.now())
+  }
+
   return {
-    /** Emma finished speaking: start waiting if her last line was a question. */
+    /** Emma's audio ended: wait for the learner, unless the nudges are used up. */
     arm: (tutorText: string) => {
       cancel()
-      if (firedSinceLearner || !endsWithQuestion(tutorText)) return
-      timer = window.setTimeout(() => {
-        timer = null
-        firedSinceLearner = true
-        fire()
-      }, SILENCE_HINT_MS)
+      if (nudges >= SILENCE_NUDGE_MS.length) return
+      deadline = performance.now() + SILENCE_NUDGE_MS[nudges]
+      wait(nudgeFor(tutorText, nudges))
     },
-    /** The learner spoke or typed. */
-    learnerActive: () => {
+    /** The mic picked up sound (maybe noise): restart the silence count without using up a nudge. */
+    learnerSound: () => {
+      if (timer !== null) deadline = performance.now() + SILENCE_NUDGE_MS[nudges]
+    },
+    /** The learner really spoke or typed. */
+    learnerSpoke: () => {
       cancel()
-      firedSinceLearner = false
+      nudges = 0
     },
-    /** The learner asked for help with a button: no automatic hint until they speak again. */
+    /** The learner asked for help with a button: no automatic nudge until they speak again. */
     helpRequested: () => {
       cancel()
-      firedSinceLearner = true
+      nudges = SILENCE_NUDGE_MS.length
     },
     cancel,
   }
 }
 
-/** After Emma asks a question, wait SILENCE_HINT_MS of learner silence, then call `fire` (once). It is not
- * re-armed until the learner has spoken, so Emma's "Do you need a hint?" does not loop. Stable identity:
- * the first `fire` is kept, so it must reach changing values through refs. */
-export function useSilenceHint(fire: () => void) {
+/** After Emma finishes, wait for learner silence, then call `fire` with the nudge to send. At most
+ * SILENCE_NUDGE_MS.length nudges until the learner speaks, so Emma does not loop. Stable identity: the first
+ * `fire` is kept, so it must reach changing values through refs. */
+export function useSilenceHint(fire: (nudge: SilenceNudge) => void) {
   const [hint] = useState(() => createSilenceHint(fire))
   useEffect(() => hint.cancel, [hint])
   return hint

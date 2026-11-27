@@ -82,7 +82,7 @@ export function ConversationPage(props: ConversationPageProps = {}) {
 
   const live = running || mode === 'connecting'
   const view = live ? 'live' : ended ? 'ended' : 'setup'
-  const silence = useSilenceHint(() => sessionRef.current?.sendAction('auto_hint'))
+  const silence = useSilenceHint((nudge) => sessionRef.current?.sendAction(nudge))
   const { pinned, scrollToBottom } = useStickToBottom(talkRef, view !== 'setup')
   useWakeLock(live)
 
@@ -122,7 +122,7 @@ export function ConversationPage(props: ConversationPageProps = {}) {
       const muted = s.halfDuplex && s.tutorSpeaking()
       if (s.micLevel > USER_TALK_RMS && !muted) lastUserTalk = now
       const m: OrbMode = s.tutorSpeaking() ? 'tutor' : now - lastUserTalk < 350 ? 'user' : 'listening'
-      if (m === 'user') silence.learnerActive()
+      if (m === 'user') silence.learnerSound()
       if (pendingHintArm.current && !s.tutorSpeaking()) {
         pendingHintArm.current = false
         silence.arm(transcript.lastTutorText())
@@ -189,7 +189,7 @@ export function ConversationPage(props: ConversationPageProps = {}) {
         endReason.current = reason === 'time_limit' ? 'time_limit' : 'stopped'
       },
       onTranscript: (role, fragment) => {
-        if (role === 'user') silence.learnerActive()
+        if (role === 'user') silence.learnerSpoke()
         else silence.cancel()
         transcript.fragment(role, fragment)
       },
@@ -231,7 +231,7 @@ export function ConversationPage(props: ConversationPageProps = {}) {
     e.preventDefault()
     const t = text.trim()
     if (!t || !sessionRef.current) return
-    silence.learnerActive()
+    silence.learnerSpoke()
     transcript.typed(t)
     sessionRef.current.sendText(t)
     setText('')

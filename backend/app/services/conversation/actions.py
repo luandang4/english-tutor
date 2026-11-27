@@ -17,6 +17,11 @@ ACTION_INSTRUCTIONS: dict[str, str] = {
         f"'Take your time. Do you need a hint?', call {HINT_TOOL} for your question, and make the question "
         "easier (a choice between two answers). Do not ask a new question.)"
     ),
+    "check_in": (
+        "(App signal: the learner has still not answered. Warmly check in, e.g. 'Are you still there? No "
+        "rush.', then ask your last question again in shorter, simpler words. If you had not asked a question, "
+        "ask one easy question about the topic. Keep it to 2 short sentences.)"
+    ),
     "translate": (
         "(App signal: the learner pressed 'I don't understand'. Call "
         f"{TRANSLATE_TOOL} with what you last said and its Vietnamese translation, then say it again in simpler "
