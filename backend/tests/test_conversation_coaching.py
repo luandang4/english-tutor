@@ -36,6 +36,8 @@ def test_help_buttons_keep_emma_on_the_same_question() -> None:
     assert "Stay on this question" in ACTION_INSTRUCTIONS["hint"]
     assert "Do not ask a new question" in ACTION_INSTRUCTIONS["auto_hint"]
     assert "ask your last question again" in ACTION_INSTRUCTIONS["check_in"]
+    assert "speak ONCE" in ACTION_INSTRUCTIONS["auto_hint"]
+    assert "Never reuse the wording" in ACTION_INSTRUCTIONS["check_in"]
     assert "Do not ask anything" in ACTION_INSTRUCTIONS["silent_end"]
     assert "wait for their answer to that same message" in ACTION_INSTRUCTIONS["translate"]
 

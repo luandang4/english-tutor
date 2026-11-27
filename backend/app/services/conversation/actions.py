@@ -6,6 +6,11 @@ forwarded to the model as an instruction.
 
 from app.services.conversation.tutor import HINT_TOOL, TRANSLATE_TOOL
 
+VARY_WORDING = (
+    "Never reuse the wording of an earlier check-in in this lesson: each one must sound different "
+    "(e.g. not 'Are you still there?' twice)."
+)
+
 ACTION_INSTRUCTIONS: dict[str, str] = {
     "hint": (
         "(App signal: the learner pressed the Hint button — they do not know how to answer your last question. "
@@ -13,14 +18,14 @@ ACTION_INSTRUCTIONS: dict[str, str] = {
         "short example answer of your own and a sentence frame, and encourage them to try. Stay on this question.)"
     ),
     "auto_hint": (
-        "(App signal: the learner has been silent for a while after your question. Gently offer help, e.g. "
-        f"'Take your time. Do you need a hint?', call {HINT_TOOL} for your question, and make the question "
-        "easier (a choice between two answers). Do not ask a new question.)"
+        f"(App signal: the learner has been silent for a while after your question. First call {HINT_TOOL} for "
+        "your question, without speaking. Then speak ONCE: a gentle check-in in your own words and your question "
+        f"made easier (a choice between two answers). {VARY_WORDING} Do not ask a new question.)"
     ),
     "check_in": (
-        "(App signal: the learner has still not answered. Warmly check in, e.g. 'Are you still there? No "
-        "rush.', then ask your last question again in shorter, simpler words. If you had not asked a question, "
-        "ask one easy question about the topic. Keep it to 2 short sentences.)"
+        "(App signal: the learner has still not answered. Check in warmly in your own words, then ask your last "
+        "question again in shorter, simpler words. If you had not asked a question, ask one easy question about "
+        f"the topic. {VARY_WORDING} Keep it to 2 short sentences.)"
     ),
     "silent_end": (
         "(App signal: the learner has not answered after several check-ins, and the app will end this lesson "

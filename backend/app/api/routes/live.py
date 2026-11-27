@@ -345,6 +345,10 @@ async def _relay(
                 return "go_away"
 
 
+# Sent back after a card is shown; without the reminder the model often says its last message a second time.
+TOOL_SHOWN = "shown on screen. Do not repeat anything you already said aloud; continue only with what is new."
+
+
 async def _answer_tool_calls(ws: WebSocket, session: Any, transcript: Transcript, tool_call: Any, level: str) -> None:
     """Show Emma's on-screen cards (translation / feedback / hint) in the UI, then let the model continue."""
     responses = []
@@ -353,7 +357,7 @@ async def _answer_tool_calls(ws: WebSocket, session: Any, transcript: Transcript
             transcript.add_card(card)
             await ws.send_json(card.to_message())
         responses.append(
-            types.FunctionResponse(id=call.id, name=call.name, response={"result": "shown" if card else "invalid"})
+            types.FunctionResponse(id=call.id, name=call.name, response={"result": TOOL_SHOWN if card else "invalid"})
         )
     if responses:
         await session.send_tool_response(function_responses=responses)
