@@ -79,6 +79,17 @@ async def _access_denied(_: Request, exc: Exception) -> JSONResponse:
     return JSONResponse({"detail": str(exc)}, status_code=exc.status)
 
 
+# The app shell and service worker must be revalidated on every load so a new deploy reaches installed apps;
+# hashed files under /assets are immutable and keep the default caching.
+NO_CACHE = {"Cache-Control": "no-cache"}
+REVALIDATE = frozenset({"index.html", "sw.js", "manifest.webmanifest"})
+MEDIA_TYPES = {".webmanifest": "application/manifest+json"}
+
+
+def _cache(path: str) -> dict[str, str] | None:
+    return NO_CACHE if path in REVALIDATE else None
+
+
 def _mount_frontend(app: FastAPI, dist: Path) -> None:
     """Serve the built React app; unknown non-API paths fall back to index.html (client-side routing)."""
     index = dist / "index.html"
@@ -95,8 +106,8 @@ def _mount_frontend(app: FastAPI, dist: Path) -> None:
         if path.startswith(("api/", "ws/")):
             raise HTTPException(404)
         if path in files:
-            return FileResponse(root / path)
-        return FileResponse(index)
+            return FileResponse(root / path, media_type=MEDIA_TYPES.get(Path(path).suffix), headers=_cache(path))
+        return FileResponse(index, headers=NO_CACHE)
 
 
 app = create_app()

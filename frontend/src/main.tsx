@@ -4,6 +4,7 @@ import { createRoot } from 'react-dom/client'
 import { RouterProvider } from 'react-router-dom'
 
 import { ApiError } from './api/client'
+import { AppBanners } from './components/layout/AppBanners'
 import { initTheme } from './lib/theme'
 import { router } from './router'
 import './styles/global.css'
@@ -31,6 +32,7 @@ createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
       <RouterProvider router={router} />
+      <AppBanners />
     </QueryClientProvider>
   </StrictMode>,
 )

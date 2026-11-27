@@ -1,0 +1,32 @@
+.app-banners {
+  position: fixed;
+  left: 50%;
+  bottom: calc(16px + env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: min(480px, calc(100vw - 32px));
+  pointer-events: none;
+}
+.app-banner {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 10px 14px;
+  border: 1px solid var(--border-strong);
+  border-radius: 14px;
+  background: var(--panel-solid);
+  box-shadow: var(--shadow);
+  color: var(--text);
+  font-size: 0.9rem;
+}
+.app-banner span { flex: 1; min-width: 140px; }
+.app-banner.warn { border-color: var(--ok); background: var(--panel-solid); color: var(--ok); }
+/* Phones: stay above the bottom tab bar. */
+@media (max-width: 900px) {
+  .app-banners { bottom: calc(84px + env(safe-area-inset-bottom)); }
+}

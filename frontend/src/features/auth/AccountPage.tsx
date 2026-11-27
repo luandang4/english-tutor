@@ -6,6 +6,7 @@ import { AudioSourceSelect, ErrorBox, Icon, PageHeader, PasswordInput, Spinner, 
 import { passwordStrongEnough } from '../../lib/password'
 import { THEME_OPTIONS, useTheme } from '../../lib/theme'
 import { Segmented } from '../../components/ui/Segmented'
+import { InstallAppCard } from './InstallAppCard'
 import { MyPlan } from './MyPlan'
 import { EmmaMemoryCard } from '../conversation/EmmaMemoryCard'
 import { SrsSettingsCard } from '../review/SrsSettingsCard'
@@ -48,6 +49,8 @@ export function AccountPage() {
           <Icon name="shield" /> <b className="spacer">Trang quản trị</b> <Icon name="arrowRight" size={16} />
         </Link>
       )}
+
+      <InstallAppCard />
 
       <div className="card stack">
         <div className="card-title" style={{ marginBottom: 0 }}>
