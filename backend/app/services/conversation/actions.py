@@ -22,6 +22,11 @@ ACTION_INSTRUCTIONS: dict[str, str] = {
         "rush.', then ask your last question again in shorter, simpler words. If you had not asked a question, "
         "ask one easy question about the topic. Keep it to 2 short sentences.)"
     ),
+    "silent_end": (
+        "(App signal: the learner has not answered after several check-ins, and the app will end this lesson "
+        "when you finish speaking. In 1-2 short sentences say kindly that you will stop here since they seem busy, "
+        "that they can come back any time, and goodbye. Do not ask anything.)"
+    ),
     "translate": (
         "(App signal: the learner pressed 'I don't understand'. Call "
         f"{TRANSLATE_TOOL} with what you last said and its Vietnamese translation, then say it again in simpler "

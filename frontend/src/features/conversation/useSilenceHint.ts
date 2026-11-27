@@ -1,16 +1,19 @@
 import { useEffect, useState } from 'react'
 import type { LiveAction } from '../../lib/audio/live-session'
 
-/** Learner silence before each nudge, counted from the end of Emma's audio (or the last mic sound). */
-export const SILENCE_NUDGE_MS = [6000, 10000]
+/** Learner silence before each nudge, counted from the end of Emma's audio (or the last mic sound). The last
+ * step is not a nudge: Emma says goodbye and the session ends. */
+export const SILENCE_NUDGE_MS = [6000, 10000, 10000, 10000]
 
-export type SilenceNudge = Extract<LiveAction, 'auto_hint' | 'check_in'>
+export type SilenceNudge = Extract<LiveAction, 'auto_hint' | 'check_in' | 'silent_end'>
 
 const asksQuestion = (text: string) => text.includes('?')
 
-/** First nudge after a question offers a hint; otherwise (or the second time) Emma checks in and asks again. */
-const nudgeFor = (tutorText: string, count: number): SilenceNudge =>
-  count === 0 && asksQuestion(tutorText) ? 'auto_hint' : 'check_in'
+/** First nudge after a question offers a hint; later ones check in and ask again; the last one ends the talk. */
+const nudgeFor = (tutorText: string, count: number): SilenceNudge => {
+  if (count === SILENCE_NUDGE_MS.length - 1) return 'silent_end'
+  return count === 0 && asksQuestion(tutorText) ? 'auto_hint' : 'check_in'
+}
 
 /** Timer logic, independent of React so one instance can live for the component's lifetime. */
 function createSilenceHint(fire: (nudge: SilenceNudge) => void) {

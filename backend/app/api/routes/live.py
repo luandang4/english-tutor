@@ -6,7 +6,7 @@ Browser <-> /ws/conversation protocol
            (first message; custom scenario adds "custom_title", "custom_request")
     binary PCM16 mono 16 kHz mic audio
     text   {"type": "text", "text": "..."}   typed message
-    text   {"type": "action", "action": "hint"|"auto_hint"|"check_in"|"translate"|"repeat"|"slower"}
+    text   {"type": "action", "action": "hint"|"auto_hint"|"check_in"|"silent_end"|"translate"|"repeat"|"slower"}
            quick-help button / silence timer; mapped to a fixed instruction (services/conversation/actions.py)
     text   {"type": "stop"}
   server -> client

@@ -36,6 +36,7 @@ def test_help_buttons_keep_emma_on_the_same_question() -> None:
     assert "Stay on this question" in ACTION_INSTRUCTIONS["hint"]
     assert "Do not ask a new question" in ACTION_INSTRUCTIONS["auto_hint"]
     assert "ask your last question again" in ACTION_INSTRUCTIONS["check_in"]
+    assert "Do not ask anything" in ACTION_INSTRUCTIONS["silent_end"]
     assert "wait for their answer to that same message" in ACTION_INSTRUCTIONS["translate"]
 
 
@@ -203,7 +204,7 @@ def test_transcript_exports_feedback_under_learner_turn_and_hint_cards() -> None
 
 
 def test_actions_are_whitelisted_fixed_instructions() -> None:
-    assert set(ACTION_INSTRUCTIONS) == {"hint", "auto_hint", "check_in", "translate", "repeat", "slower"}
+    assert set(ACTION_INSTRUCTIONS) == {"hint", "auto_hint", "check_in", "silent_end", "translate", "repeat", "slower"}
     for name, text in ACTION_INSTRUCTIONS.items():
         assert action_instruction(name) == text and text.startswith("(App signal:")
     assert HINT_TOOL in action_instruction("hint") and HINT_TOOL in action_instruction("auto_hint")

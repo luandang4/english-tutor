@@ -16,7 +16,7 @@ export interface LiveSettings {
 }
 
 /** Quick-help buttons (and the silence timer); the server maps each to a fixed instruction for Emma. */
-export type LiveAction = 'hint' | 'auto_hint' | 'check_in' | 'translate' | 'repeat' | 'slower'
+export type LiveAction = 'hint' | 'auto_hint' | 'check_in' | 'silent_end' | 'translate' | 'repeat' | 'slower'
 
 export interface FeedbackCard {
   kind: FeedbackKind
@@ -118,7 +118,7 @@ export class LiveSession {
   /** Quick-help signal. Silence nudges keep Emma's current audio; buttons cut it so she answers right away. */
   sendAction(action: LiveAction): void {
     if (this.ws?.readyState !== WebSocket.OPEN) return
-    if (action !== 'auto_hint' && action !== 'check_in') this.stopPlayback()
+    if (action === 'hint' || action === 'translate' || action === 'repeat' || action === 'slower') this.stopPlayback()
     this.ws.send(JSON.stringify({ type: 'action', action }))
   }
 

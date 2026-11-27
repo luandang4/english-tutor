@@ -22,6 +22,7 @@ import { useSilenceHint } from './useSilenceHint'
 import { useStickToBottom } from './useStickToBottom'
 import './conversation.css'
 
+const SILENT_END_FALLBACK_MS = 20000 // stop even if Emma's goodbye never arrives
 const USER_TALK_RMS = 0.025 // mic level that counts as "the learner is speaking"
 
 export interface SessionEndInfo {
@@ -78,11 +79,22 @@ export function ConversationPage(props: ConversationPageProps = {}) {
   const ready = useRef(false) // the server accepted the session (it may be saved)
   const endReason = useRef<EndReason>('stopped')
   const pendingHintArm = useRef(false) // Emma finished generating; start the silence timer once her audio ends
+  const silentEnd = useRef<number | null>(null) // fallback timer while Emma says goodbye to a silent learner
   const unmounted = useRef(false)
 
   const live = running || mode === 'connecting'
   const view = live ? 'live' : ended ? 'ended' : 'setup'
-  const silence = useSilenceHint((nudge) => sessionRef.current?.sendAction(nudge))
+  const silence = useSilenceHint((nudge) => {
+    if (nudge === 'silent_end') {
+      transcript.notice('Bạn im lặng khá lâu nên Emma sẽ kết thúc buổi nói chuyện.', 'info')
+      silentEnd.current = window.setTimeout(() => sessionRef.current?.stop(), SILENT_END_FALLBACK_MS)
+    }
+    sessionRef.current?.sendAction(nudge)
+  })
+  const cancelSilentEnd = () => {
+    if (silentEnd.current !== null) window.clearTimeout(silentEnd.current)
+    silentEnd.current = null
+  }
   const { pinned, scrollToBottom } = useStickToBottom(talkRef, view !== 'setup')
   useWakeLock(live)
 
@@ -125,7 +137,8 @@ export function ConversationPage(props: ConversationPageProps = {}) {
       if (m === 'user') silence.learnerSound()
       if (pendingHintArm.current && !s.tutorSpeaking()) {
         pendingHintArm.current = false
-        silence.arm(transcript.lastTutorText())
+        if (silentEnd.current !== null) s.stop() // Emma's goodbye has finished playing
+        else silence.arm(transcript.lastTutorText())
       }
       setMode((prev) => (prev === m ? prev : m))
       orbRef.current?.setSource(m === 'tutor' ? s.outAnalyser : muted ? null : s.inAnalyser)
@@ -143,6 +156,7 @@ export function ConversationPage(props: ConversationPageProps = {}) {
   const finish = () => {
     sessionRef.current = null
     pendingHintArm.current = false
+    cancelSilentEnd()
     silence.cancel()
     if (unmounted.current) return
     setRunning(false)
@@ -189,8 +203,10 @@ export function ConversationPage(props: ConversationPageProps = {}) {
         endReason.current = reason === 'time_limit' ? 'time_limit' : 'stopped'
       },
       onTranscript: (role, fragment) => {
-        if (role === 'user') silence.learnerSpoke()
-        else silence.cancel()
+        if (role === 'user') {
+          silence.learnerSpoke()
+          cancelSilentEnd()
+        } else silence.cancel()
         transcript.fragment(role, fragment)
       },
       onTurnEnd: () => {
