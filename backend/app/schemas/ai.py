@@ -199,3 +199,40 @@ class ConversationRecap(BaseModel):
     goal_comment_vi: str = Field(
         description="If a lesson goal is given: did they reach it? One Vietnamese sentence. Else empty"
     )
+
+
+# ---------- sentence translation practice ----------
+class SentenceItemDraft(BaseModel):
+    vi: str = Field(description="One natural Vietnamese sentence for the learner to write in English")
+    target_words: list[str] = Field(description="1-2 English words / phrases the English sentence must use")
+    grammar_point: str = Field(
+        description="Vietnamese name of the grammar point it practises, e.g. 'Hiện tại hoàn thành'"
+    )
+    answers: list[str] = Field(description="2-3 correct, natural English translations (different valid wordings)")
+    hint_vi: str = Field(description="Short Vietnamese hint: the sentence frame / tense to use, never the full answer")
+    hint_words: list[str] = Field(description="2-4 English keywords that help (not the whole sentence)")
+
+
+class SentenceSetDraft(BaseModel):
+    title: str = Field(description="Short Vietnamese title for this practice set")
+    items: list[SentenceItemDraft] = Field(description="Exactly the requested number of sentences, easy to harder")
+
+
+class SentenceError(BaseModel):
+    kind: Literal["grammar", "vocabulary", "word_order", "spelling", "missing", "meaning"]
+    original: str = Field(description="The wrong span copied exactly from the learner's sentence ('' if missing)")
+    fix: str = Field(description="The corrected span")
+    explain_vi: str = Field(description="One short Vietnamese reason, e.g. 'quá khứ: go → went'")
+
+
+class SentenceGrade(BaseModel):
+    verdict: Literal["correct", "almost", "wrong"] = Field(
+        description="correct: right meaning and grammar (other valid wordings are correct); almost: meaning right "
+        "with 1-2 small slips; wrong: meaning lost or major grammar errors"
+    )
+    score: int = Field(description="0-100")
+    corrected: str = Field(description="The learner's sentence with only the errors fixed (keep their wording)")
+    natural: str = Field(description="A natural way a native speaker would say it (may equal corrected)")
+    errors: list[SentenceError] = Field(description="Every real error, max 5; empty when correct")
+    target_words_used: bool = Field(description="True if every target word / phrase is used correctly")
+    comment_vi: str = Field(description="One short encouraging Vietnamese comment: what was good / what to fix")

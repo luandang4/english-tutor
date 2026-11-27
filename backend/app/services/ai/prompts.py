@@ -29,7 +29,7 @@ def _level(level: str) -> str:
     return f"CEFR {level} ({LEVELS[level]['ai']})"
 
 
-def _topic(topic: Topic, label: str = "Topic") -> str:
+def topic_line(topic: Topic, label: str = "Topic") -> str:
     if not topic.is_custom:
         return f"{label}: {topic.title} — {topic.focus or topic.description_vi}"
     line = f"{label} (chosen by the learner): {topic.title}"
@@ -46,7 +46,7 @@ def _topic(topic: Topic, label: str = "Topic") -> str:
 def vocab_lesson_prompt(topic: Topic, level: str, known_words: list[str]) -> str:
     avoid = ", ".join(known_words) or "(none)"
     return f"""Create a vocabulary lesson.
-{_topic(topic)}
+{topic_line(topic)}
 Learner level: {_level(level)}
 
 Requirements:
@@ -75,7 +75,7 @@ GRAMMAR_BLOCKS = """- Build every section ONLY from these blocks (the app draws 
 
 def grammar_lesson_prompt(topic: Topic, level: str) -> str:
     return f"""Create a grammar lesson.
-{_topic(topic, "Grammar point")}
+{topic_line(topic, "Grammar point")}
 Learner level: {_level(level)}
 
 Requirements:
@@ -90,7 +90,7 @@ Requirements:
 
 def writing_task_prompt(topic: Topic, level: str) -> str:
     return f"""Create one writing assignment.
-{_topic(topic, "Task type / topic")}
+{topic_line(topic, "Task type / topic")}
 Learner level: {_level(level)}
 
 Make it realistic and specific (a concrete situation/question), with a word range suitable for the level
@@ -130,7 +130,7 @@ EXERCISE_MIX = {
 }
 
 
-def _formulas(section: dict) -> str:
+def section_formulas(section: dict) -> str:
     """A section's structures as one line. Older lessons keep `formulas` rows or a single `formula` string."""
     rows = [
         {**r, "label_vi": f"{b.get('title', '')} {r.get('label_vi', '')}".strip()}
@@ -150,7 +150,7 @@ def new_exercises_prompt(*, skill: str, level: str, title: str, content: dict, p
         target = "Target words (practise ONLY these):\n" + "\n".join(lines)
     else:
         target = "Grammar point and its sections:\n" + "\n".join(
-            f"- {s.get('heading', '')}: {_formulas(s)}" for s in content.get("sections", [])
+            f"- {s.get('heading', '')}: {section_formulas(s)}" for s in content.get("sections", [])
         )
     past = "\n".join(f"- {q}" for q in past_questions[-60:]) or "(none)"
     return f"""Create a NEW practice set for an existing lesson the learner has already studied.
@@ -171,3 +171,62 @@ def word_info_prompt(word: str, context: str) -> str:
     ctx = f"\nThe learner met it in this context: {context}\nGive the meaning used in that context." if context else ""
     return f"""Write a learner-dictionary entry for the English word or phrase: {word}{ctx}
 If the word is misspelled, correct it. Keep the example short (under 15 words) and natural."""
+
+
+# ---------- sentence translation practice (Vietnamese -> English) ----------
+SENTENCE_LENGTH = {
+    "A1": "5-8 English words, present simple / can / like, the most common words",
+    "A2": "7-12 English words, present / past simple, going to, present continuous",
+    "B1": "10-16 English words; present perfect, past continuous, comparatives, first conditional, modals",
+    "B2": "12-20 English words; passive, relative clauses, second / third conditional, reported speech",
+    "C1": "15-25 English words; nuanced structures (inversion, mixed conditionals, cleft sentences), idiomatic usage",
+}
+
+
+def _sentence_focus(focus: dict) -> str:
+    lines = []
+    if focus.get("topic"):
+        lines.append(focus["topic"])
+    if words := focus.get("words"):
+        listed = "\n".join(f"- {w['word']}: {w.get('meaning_vi', '')}" for w in words)
+        lines.append(f"Target words (use each at least once across the set; 1-2 per sentence):\n{listed}")
+    if grammar := focus.get("grammar"):
+        lines.append("Grammar to practise (spread across the set):\n" + "\n".join(f"- {g}" for g in grammar))
+    return "\n".join(lines)
+
+
+def sentence_set_prompt(*, level: str, focus: dict, count: int) -> str:
+    return f"""Create {count} sentences for translation practice: the learner reads a Vietnamese sentence and writes
+it in English. The goal is grammar reflexes and using vocabulary in real sentences.
+Learner level: {_level(level)}
+{_sentence_focus(focus)}
+
+Requirements:
+- English length and grammar: {SENTENCE_LENGTH[level]}.
+- The Vietnamese must sound natural (as a Vietnamese person would say it, not translated English), be about
+  real adult life (work, family, plans, opinions, daily routine) and be unambiguous: show the time / tense with
+  words like "hôm qua", "đã", "đang", "sẽ", "từ năm 2020" so only one English tense fits.
+- Each sentence practises its target_words and one grammar_point; order from easier to harder; no two sentences
+  with the same structure in a row.
+- answers: 2-3 different correct, natural English versions (contractions or a synonym count as different).
+- hint_vi gives the frame or tense (e.g. "S + have/has + V3 ... since ..."), never the whole answer;
+  hint_words are 2-4 helpful English words."""
+
+
+def sentence_grading_prompt(*, level: str, item: dict, answer: str) -> str:
+    return f"""Grade the learner's English translation of a Vietnamese sentence.
+Learner level: {_level(level)}
+Vietnamese: {item["vi"]}
+Target words to use: {", ".join(item.get("target_words", [])) or "(none)"}
+Grammar point: {item.get("grammar_point", "")}
+Reference answers (any other correct, natural wording is equally correct): {" | ".join(item.get("answers", []))}
+Learner's English: {answer}
+
+Rules:
+- Judge meaning and grammar, not closeness to the references. A different but correct wording is "correct".
+- Capitalisation and the final full stop never matter. A small spelling slip or a missing article is "almost".
+- If the sentence is right but a target word is missing or misused, verdict is "almost" and say which word.
+- corrected keeps the learner's own wording and applies EVERY fix listed in errors (nothing else); natural is
+  how a native speaker would say it at this level.
+- Explanations in Vietnamese, short, comparing with Vietnamese when it helps (e.g. "tiếng Anh bắt buộc chia
+  động từ: he go → he goes")."""

@@ -35,6 +35,13 @@ class LessonStatus(StrEnum):
     FAILED = "failed"
 
 
+class SentenceSource(StrEnum):
+    LESSON = "lesson"  # words / grammar of one lesson
+    DECK = "deck"  # words due (or soon due) in the learner's deck
+    TOPIC = "topic"  # a preset or custom topic
+    RETRY = "retry"  # the missed sentences of an earlier set (no AI)
+
+
 class SubmissionStatus(StrEnum):
     GRADING = "grading"
     GRADED = "graded"

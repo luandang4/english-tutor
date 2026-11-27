@@ -1,17 +1,60 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 
 import { useCreateWritingTask, useDeleteWritingTask, useTopics, useWritingTasks } from '../../api/hooks'
-import type { CustomTopic, Topic } from '../../api/types'
+import type { CustomTopic, Level, Topic } from '../../api/types'
 import { EmptyState, ErrorBox, Icon, LevelSelect, Loading, PageHeader, StatusBadge } from '../../components/ui'
 import { scoreTone, timeAgo } from '../../lib/format'
 import { useLevel } from '../../lib/preferences'
 import { CustomTopicForm } from '../lessons/CustomTopicForm'
 import { TopicGrid } from '../lessons/TopicGrid'
+import { SentenceHub } from './sentences/SentenceHub'
+
+type Mode = 'essay' | 'sentences'
+const MODES: { value: Mode; label: string }[] = [
+  { value: 'sentences', label: 'Dịch câu' },
+  { value: 'essay', label: 'Viết luận' },
+]
 
 export function WritingHubPage() {
-  const [tab, setTab] = useState<'topics' | 'mine'>('topics')
+  const [params, setParams] = useSearchParams()
+  const mode: Mode = params.get('mode') === 'essay' ? 'essay' : 'sentences'
   const [level, setLevel] = useLevel()
+
+  return (
+    <div className="page">
+      <PageHeader
+        title="Luyện viết"
+        subtitle={
+          mode === 'sentences'
+            ? 'Dịch câu tiếng Việt sang tiếng Anh để luyện phản xạ ngữ pháp và dùng từ vựng; AI chấm và sửa từng câu.'
+            : 'Chọn dạng bài — AI ra đề, gợi ý dàn ý & cụm từ. Viết xong, Gemini chấm theo 4 tiêu chí và sửa từng lỗi.'
+        }
+        actions={
+          <div style={{ minWidth: 200 }}>
+            <LevelSelect value={level} onChange={setLevel} />
+          </div>
+        }
+      />
+      <div className="tabs">
+        {MODES.map((m) => (
+          <button
+            key={m.value}
+            className={`tab ${mode === m.value ? 'active' : ''}`}
+            onClick={() => setParams(m.value === 'sentences' ? {} : { mode: m.value }, { replace: true })}
+          >
+            {m.label}
+          </button>
+        ))}
+      </div>
+      {mode === 'sentences' ? <SentenceHub level={level} /> : <EssayHub level={level} />}
+    </div>
+  )
+}
+
+/** "Viết luận": AI essay prompts by topic, and the learner's past essays. */
+function EssayHub({ level }: { level: Level }) {
+  const [tab, setTab] = useState<'topics' | 'mine'>('topics')
   const topics = useTopics('writing')
   const tasks = useWritingTasks()
   const create = useCreateWritingTask()
@@ -36,16 +79,7 @@ export function WritingHubPage() {
   }
 
   return (
-    <div className="page">
-      <PageHeader
-        title="Luyện viết"
-        subtitle="Chọn dạng bài — AI ra đề, gợi ý dàn ý & cụm từ. Viết xong, Gemini chấm theo 4 tiêu chí và sửa từng lỗi."
-        actions={
-          <div style={{ minWidth: 200 }}>
-            <LevelSelect value={level} onChange={setLevel} />
-          </div>
-        }
-      />
+    <>
       <div className="tabs">
         <button className={`tab ${tab === 'topics' ? 'active' : ''}`} onClick={() => setTab('topics')}>
           Dạng bài
@@ -114,6 +148,6 @@ export function WritingHubPage() {
             ))}
           </div>
         ))}
-    </div>
+    </>
   )
 }

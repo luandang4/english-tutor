@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.constants import Skill
 from app.models.lesson import Lesson
+from app.models.sentence import SentenceSet
 from app.models.topic import Topic
 from app.models.writing import WritingTask
 from app.schemas.api import CustomTopicIn
@@ -50,5 +51,6 @@ async def delete_custom_topic_if_unused(session: AsyncSession, topic_id: int) ->
         return
     used = await session.scalar(select(func.count()).select_from(Lesson).where(Lesson.topic_id == topic_id))
     used += await session.scalar(select(func.count()).select_from(WritingTask).where(WritingTask.topic_id == topic_id))
+    used += await session.scalar(select(func.count()).select_from(SentenceSet).where(SentenceSet.topic_id == topic_id))
     if not used:
         await session.delete(topic)

@@ -95,6 +95,12 @@ export const router = createBrowserRouter([
         lazy: gated('writing', () => import('./features/writing/WritingHubPage').then((m) => m.WritingHubPage)),
       },
       {
+        path: '/writing/sentences/:id',
+        lazy: gated('writing', () =>
+          import('./features/writing/sentences/SentencePracticePage').then((m) => m.SentencePracticePage),
+        ),
+      },
+      {
         path: '/writing/tasks/:id',
         lazy: gated('writing', () => import('./features/writing/WritingTaskPage').then((m) => m.WritingTaskPage)),
       },

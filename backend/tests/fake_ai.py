@@ -16,6 +16,10 @@ from app.schemas.ai import (
     GrammarExample,
     GrammarLessonDraft,
     GrammarSection,
+    SentenceError,
+    SentenceGrade,
+    SentenceItemDraft,
+    SentenceSetDraft,
     SummaryMistake,
     SummaryWord,
     TextTranslation,
@@ -166,6 +170,42 @@ class FakeAI:
                 max_words=100,
                 useful_phrases=[UsefulPhrase(phrase="How are you?", meaning_vi="Bạn khỏe không?")],
                 outline_vi=["Chào hỏi"],
+            )
+        if schema is SentenceSetDraft:
+            items = [
+                SentenceItemDraft(
+                    vi=f"Tôi đã làm lập trình viên được {n} năm.",
+                    target_words=["developer"],
+                    grammar_point="Hiện tại hoàn thành",
+                    answers=[f"I have been a developer for {n} years.", f"I've been a developer for {n} years."],
+                    hint_vi="S + have/has + V3 + for ...",
+                    hint_words=["have been", "for"],
+                )
+                for n in range(2, 12)
+            ]
+            return SentenceSetDraft(title="Luyện câu", items=items)
+        if schema is SentenceGrade:
+            learner = prompt.split("Learner's English:")[1].split("\n")[0].strip()
+            if "developer" in learner and "have" in learner:
+                return SentenceGrade(
+                    verdict="correct",
+                    score=95,
+                    corrected=learner,
+                    natural=learner,
+                    errors=[],
+                    target_words_used=True,
+                    comment_vi="Tốt!",
+                )
+            return SentenceGrade(
+                verdict="wrong",
+                score=30,
+                corrected="I have been a developer for 2 years.",
+                natural="I've been a developer for 2 years.",
+                errors=[
+                    SentenceError(kind="grammar", original="am", fix="have been", explain_vi="hiện tại hoàn thành")
+                ],
+                target_words_used="developer" in learner,
+                comment_vi="Dùng hiện tại hoàn thành với for.",
             )
         if schema is AnswerGrade:
             ok = "boarding pass" in prompt.split("Learner answer:")[-1].lower()

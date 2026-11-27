@@ -637,3 +637,76 @@ export interface Progress {
   activity: { date: string; count: number }[]
   recent: { kind: string; title: string; score: number | null; at: string; link: string }[]
 }
+
+// ---------- sentence translation practice ----------
+export type SentenceSource = 'lesson' | 'deck' | 'topic'
+export type SentenceVerdict = 'correct' | 'almost' | 'wrong' | 'revealed'
+export type SentenceErrorKind = 'grammar' | 'vocabulary' | 'word_order' | 'spelling' | 'missing' | 'meaning'
+
+export interface SentenceGradeResult {
+  verdict: 'correct' | 'almost' | 'wrong'
+  score: number
+  corrected: string
+  natural: string
+  errors: { kind: SentenceErrorKind; original: string; fix: string; explain_vi: string }[]
+  target_words_used: boolean
+  comment_vi: string
+}
+
+export interface SentenceAttempt {
+  id: number
+  item_index: number
+  answer: string
+  verdict: SentenceVerdict
+  score: number
+  hint_used: boolean
+  result: SentenceGradeResult | null
+  created_at: string
+}
+
+export interface SentenceItem {
+  index: number
+  vi: string
+  target_words: string[]
+  grammar_point: string
+  hint_vi: string
+  hint_words: string[]
+  answers: string[]
+  done: boolean
+  verdict: SentenceVerdict | null
+  score: number | null
+  tries_left: number
+  attempts: SentenceAttempt[]
+}
+
+export interface SentenceStats {
+  done: number
+  total: number
+  score: number | null
+  correct: number
+  almost: number
+  wrong: number
+  error_kinds: Partial<Record<SentenceErrorKind, number>>
+  weak_grammar: string[]
+}
+
+export interface SentenceSetSummary {
+  id: number
+  source: SentenceSource | 'retry'
+  lesson_id: number | null
+  level: Level
+  status: string
+  title: string
+  created_at: string
+  stats: SentenceStats
+}
+
+export interface SentenceSetDetail extends SentenceSetSummary {
+  error: string | null
+  items: SentenceItem[]
+}
+
+export type SentenceSetCreate =
+  | { source: 'lesson'; lesson_id: number; level: Level }
+  | { source: 'deck'; level: Level }
+  | ({ source: 'topic'; level: Level } & TopicChoice)

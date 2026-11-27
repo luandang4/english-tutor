@@ -27,6 +27,10 @@ import type {
   PronunciationResult,
   QuizOut,
   QuizResult,
+  SentenceAttempt,
+  SentenceSetCreate,
+  SentenceSetDetail,
+  SentenceSetSummary,
   ReviewForecast,
   ReviewSession,
   SessionMode,
@@ -55,6 +59,8 @@ export const keys = {
   cards: (due: boolean) => ['deck', 'cards', due] as const,
   writingTasks: ['writing', 'tasks'] as const,
   writingTask: (id: number) => ['writing', 'task', id] as const,
+  sentenceSets: ['writing', 'sentences'] as const,
+  sentenceSet: (id: number) => ['writing', 'sentences', id] as const,
   conversations: ['conversations'] as const,
   conversation: (id: number) => ['conversation', id] as const,
   recap: (id: number) => ['conversation', id, 'recap'] as const,
@@ -419,6 +425,72 @@ export function useRegradeSubmission(taskId: number) {
   return useMutation({
     mutationFn: (id: number) => api.post<Submission>(`/writing/submissions/${id}/regrade`),
     onSuccess: () => qc.invalidateQueries({ queryKey: keys.writingTask(taskId) }),
+  })
+}
+
+// ---------- sentence translation practice ----------
+const SENTENCES = '/writing/sentences'
+
+export const useSentenceSets = () =>
+  useQuery({
+    queryKey: keys.sentenceSets,
+    queryFn: () => api.get<SentenceSetSummary[]>(SENTENCES),
+    refetchInterval: (q) => (q.state.data?.some((t) => t.status === 'generating') ? POLL_MS : false),
+  })
+
+export const useSentenceSet = (id: number) =>
+  useQuery({
+    queryKey: keys.sentenceSet(id),
+    queryFn: () => api.get<SentenceSetDetail>(`${SENTENCES}/${id}`),
+    refetchInterval: (q) => (q.state.data?.status === 'generating' ? POLL_MS : false),
+  })
+
+/** Create (or redo the missed sentences of) a set; the new set goes straight into the cache. */
+function useNewSentenceSet<V>(request: (v: V) => Promise<SentenceSetDetail>) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: request,
+    onSuccess: (row) => {
+      qc.setQueryData(keys.sentenceSet(row.id), row)
+      qc.invalidateQueries({ queryKey: keys.sentenceSets, exact: true })
+    },
+  })
+}
+
+export const useCreateSentenceSet = () =>
+  useNewSentenceSet((body: SentenceSetCreate) => api.post<SentenceSetDetail>(SENTENCES, body))
+
+export const useRedoMissedSentences = () =>
+  useNewSentenceSet((id: number) => api.post<SentenceSetDetail>(`${SENTENCES}/${id}/redo-missed`))
+
+export function useRetrySentenceSet(id: number) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: () => api.post<SentenceSetDetail>(`${SENTENCES}/${id}/retry`),
+    onSuccess: (row) => qc.setQueryData(keys.sentenceSet(id), row),
+  })
+}
+
+export function useDeleteSentenceSet() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: number) => api.del(`${SENTENCES}/${id}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.sentenceSets, exact: true }),
+  })
+}
+
+/** Grade one answer (`answer` set) or reveal the sentence (`answer` null). */
+export function useAnswerSentence(setId: number) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ index, answer, hintUsed }: { index: number; answer: string | null; hintUsed: boolean }) =>
+      answer === null
+        ? api.post<SentenceAttempt>(`${SENTENCES}/${setId}/items/${index}/reveal`)
+        : api.post<SentenceAttempt>(`${SENTENCES}/${setId}/items/${index}/attempts`, { answer, hint_used: hintUsed }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: keys.sentenceSet(setId) })
+      qc.invalidateQueries({ queryKey: keys.sentenceSets, exact: true })
+    },
   })
 }
 

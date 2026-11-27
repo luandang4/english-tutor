@@ -16,6 +16,7 @@ import {
   StatusBadge,
 } from '../../components/ui'
 import { SKILL_LABEL } from '../../lib/format'
+import { PracticeSentencesButton } from '../writing/sentences/PracticeSentencesButton'
 import { GrammarBody, VocabBody } from './LessonBodies'
 
 export function LessonPage({ skill }: { skill: 'vocabulary' | 'grammar' }) {
@@ -107,6 +108,7 @@ export function LessonPage({ skill }: { skill: 'vocabulary' | 'grammar' }) {
             <Icon name="pen" size={16} /> Tập viết
           </Link>
         )}
+        <PracticeSentencesButton lessonId={lesson.id} level={lesson.level} />
         <AudioSourceSelect />
       </div>
 

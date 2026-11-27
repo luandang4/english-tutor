@@ -5,6 +5,7 @@ from app.models.conversation import ConversationSession, LearnerMemory
 from app.models.lesson import ExerciseAttempt, Lesson, LessonRecheck
 from app.models.plan import Plan, Subscription, UsageGrant
 from app.models.pronunciation import PronunciationAttempt
+from app.models.sentence import SentenceAttempt, SentenceSet
 from app.models.topic import Topic
 from app.models.user import AuthSession, User
 from app.models.vocab import ReviewLog, SrsSettings, VocabCard
@@ -25,6 +26,8 @@ __all__ = [
     "UsageGrant",
     "PronunciationAttempt",
     "ReviewLog",
+    "SentenceAttempt",
+    "SentenceSet",
     "SrsSettings",
     "Topic",
     "VocabCard",

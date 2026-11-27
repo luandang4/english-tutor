@@ -542,6 +542,83 @@ class SubmissionCreate(BaseModel):
     text: str = Field(min_length=20, max_length=8000)
 
 
+# ---------- sentence translation practice ----------
+class SentenceSetCreate(BaseModel):
+    """Where the sentences come from: one lesson, the learner's deck, or a topic (preset or custom)."""
+
+    source: Literal["lesson", "deck", "topic"]
+    lesson_id: int | None = None
+    topic_id: int | None = None
+    custom: CustomTopicIn | None = None
+    level: LevelCode = "B1"
+
+    @model_validator(mode="after")
+    def _source_fields(self) -> "SentenceSetCreate":
+        if self.source == "lesson" and self.lesson_id is None:
+            raise ValueError("Chọn bài học để luyện câu.")
+        if self.source == "topic" and (self.topic_id is None) == (self.custom is None):
+            raise ValueError("Chọn một chủ đề có sẵn hoặc nhập chủ đề riêng.")
+        return self
+
+
+class SentenceAttemptCreate(BaseModel):
+    answer: str = Field(min_length=1, max_length=500)
+    hint_used: bool = False
+
+
+class SentenceAttemptOut(ORM):
+    id: int
+    item_index: int
+    answer: str
+    verdict: str  # correct | almost | wrong | revealed
+    score: int
+    hint_used: bool
+    result: dict[str, Any] | None  # schemas.ai.SentenceGrade
+    created_at: datetime
+
+
+class SentenceItemOut(BaseModel):
+    index: int
+    vi: str
+    target_words: list[str]
+    grammar_point: str
+    hint_vi: str
+    hint_words: list[str]
+    answers: list[str]  # empty until the sentence is finished
+    done: bool
+    verdict: str | None
+    score: int | None
+    tries_left: int
+    attempts: list[SentenceAttemptOut]
+
+
+class SentenceStats(BaseModel):
+    done: int
+    total: int
+    score: int | None
+    correct: int
+    almost: int
+    wrong: int
+    error_kinds: dict[str, int]  # error kind -> count, most common first
+    weak_grammar: list[str]  # grammar points of sentences not answered correctly
+
+
+class SentenceSetSummary(BaseModel):
+    id: int
+    source: str
+    lesson_id: int | None
+    level: str
+    status: str
+    title: str
+    created_at: datetime
+    stats: SentenceStats
+
+
+class SentenceSetDetail(SentenceSetSummary):
+    error: str | None
+    items: list[SentenceItemOut]
+
+
 # ---------- pronunciation ----------
 class PhonemeOut(BaseModel):
     phoneme: str
