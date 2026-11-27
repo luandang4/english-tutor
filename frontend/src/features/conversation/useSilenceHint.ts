@@ -3,7 +3,10 @@ import type { LiveAction } from '../../lib/audio/live-session'
 
 /** Learner silence before each nudge, counted from the end of Emma's audio (or the last mic sound). The last
  * step is not a nudge: Emma says goodbye and the session ends. */
-export const SILENCE_NUDGE_MS = [6000, 10000, 10000, 10000]
+export const SILENCE_NUDGE_MS = [8000, 8000, 8000, 8000]
+
+/** Mic sound restarts the wait only before this many nudges have fired (i.e. for nudges 1 and 2). */
+const SOUND_RESETS_UNTIL = 2
 
 export type SilenceNudge = Extract<LiveAction, 'auto_hint' | 'check_in' | 'silent_end'>
 
@@ -43,9 +46,11 @@ function createSilenceHint(fire: (nudge: SilenceNudge) => void) {
       deadline = performance.now() + SILENCE_NUDGE_MS[nudges]
       wait(nudgeFor(tutorText, nudges))
     },
-    /** The mic picked up sound (maybe noise): restart the silence count without using up a nudge. */
+    /** The mic picked up sound (maybe noise): restart the silence count without using up a nudge. From the
+     * third nudge on, only real speech (a transcript) or typing counts, so background noise cannot keep a
+     * silent session open. */
     learnerSound: () => {
-      if (timer !== null) deadline = performance.now() + SILENCE_NUDGE_MS[nudges]
+      if (timer !== null && nudges < SOUND_RESETS_UNTIL) deadline = performance.now() + SILENCE_NUDGE_MS[nudges]
     },
     /** The learner really spoke or typed. */
     learnerSpoke: () => {
