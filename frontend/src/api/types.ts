@@ -618,12 +618,6 @@ export interface ConversationRecap {
   goal_comment_vi: string
 }
 
-/** What Emma remembers between sessions (learning data only). */
-export interface LearnerMemory {
-  mistakes: { category: string; wrong: string; right: string; count: number; last_seen?: string }[]
-  goals: string[]
-}
-
 // ---------- progress ----------
 export interface Progress {
   streak_days: number

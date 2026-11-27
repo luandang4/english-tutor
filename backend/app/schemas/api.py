@@ -38,6 +38,18 @@ class LoginIn(BaseModel):
     password: str = Field(max_length=128)
 
 
+class ProfileUpdateIn(BaseModel):
+    display_name: str = Field(min_length=1, max_length=80)
+
+    @field_validator("display_name")
+    @classmethod
+    def _clean_name(cls, value: str) -> str:
+        name = " ".join(value.split())
+        if not name:
+            raise ValueError("Tên không được để trống.")
+        return name
+
+
 class PasswordChangeIn(BaseModel):
     current_password: str = Field(max_length=128)
     new_password: str = Field(min_length=8, max_length=128)

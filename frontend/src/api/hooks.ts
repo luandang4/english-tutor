@@ -11,7 +11,6 @@ import type {
   CardCreate,
   ConversationDetail,
   ConversationRecap,
-  LearnerMemory,
   ConversationSummary,
   DeckStats,
   FeatureUsage,
@@ -64,7 +63,6 @@ export const keys = {
   conversations: ['conversations'] as const,
   conversation: (id: number) => ['conversation', id] as const,
   recap: (id: number) => ['conversation', id, 'recap'] as const,
-  learnerMemory: ['learner-memory'] as const,
   progress: ['progress'] as const,
   usage: ['usage'] as const,
   adminSystem: ['admin', 'system'] as const,
@@ -135,6 +133,14 @@ export const useChangePassword = () =>
   useMutation({
     mutationFn: (body: { current_password: string; new_password: string }) => api.post<void>('/auth/password', body),
   })
+
+export function useRenameMe() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (display_name: string) => api.patch<User>('/auth/me', { display_name }),
+    onSuccess: (me) => qc.setQueryData(keys.me, me),
+  })
+}
 
 // ---------- catalog ----------
 export const useMeta = () =>
@@ -523,17 +529,6 @@ export const useConversationRecap = (id: number | null) =>
     staleTime: Infinity,
     retry: false,
   })
-
-export const useLearnerMemory = () =>
-  useQuery({ queryKey: keys.learnerMemory, queryFn: () => api.get<LearnerMemory>('/conversations/memory') })
-
-export function useClearLearnerMemory() {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: () => api.del('/conversations/memory'),
-    onSuccess: () => void qc.invalidateQueries({ queryKey: keys.learnerMemory }),
-  })
-}
 
 /** Vietnamese for one of Emma's sentences, or one word in it (fetched on demand, cached for the session). */
 export const useTranslate = (text: string, mode: 'sentence' | 'word', context = '', enabled = true) =>

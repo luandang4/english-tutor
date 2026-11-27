@@ -545,5 +545,4 @@ details.collapse > div { margin-top: 12px; }
 .password-rules .ok { color: var(--good); }
 .password-rules .hint { flex-basis: 100%; }
 .quick.locked { opacity: 0.55; }
-.usage-today .usage-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px; }
 .usage-item { display: flex; flex-direction: column; gap: 6px; }

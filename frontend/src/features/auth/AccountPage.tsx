@@ -1,14 +1,12 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 
-import { useChangePassword, useLogout, useMe } from '../../api/hooks'
+import { useChangePassword, useLogout, useMe, useRenameMe } from '../../api/hooks'
 import { AudioSourceSelect, ErrorBox, Icon, PageHeader, PasswordInput, Spinner, SpeakButton } from '../../components/ui'
 import { passwordStrongEnough } from '../../lib/password'
 import { THEME_OPTIONS, useTheme } from '../../lib/theme'
 import { Segmented } from '../../components/ui/Segmented'
-import { InstallAppCard } from './InstallAppCard'
 import { MyPlan } from './MyPlan'
-import { EmmaMemoryCard } from '../conversation/EmmaMemoryCard'
 import { SrsSettingsCard } from '../review/SrsSettingsCard'
 import './auth.css'
 
@@ -29,7 +27,7 @@ export function AccountPage() {
       <div className="card row" style={{ gap: 16 }}>
         <span className="avatar lg">{me.display_name.charAt(0).toUpperCase()}</span>
         <div className="spacer">
-          <h2 style={{ fontSize: '1.2rem' }}>{me.display_name}</h2>
+          <DisplayName name={me.display_name} />
           <p className="muted">{me.email}</p>
           <p className="small muted">Tham gia {new Date(me.created_at).toLocaleDateString('vi-VN')}</p>
         </div>
@@ -49,8 +47,6 @@ export function AccountPage() {
           <Icon name="shield" /> <b className="spacer">Trang quản trị</b> <Icon name="arrowRight" size={16} />
         </Link>
       )}
-
-      <InstallAppCard />
 
       <div className="card stack">
         <div className="card-title" style={{ marginBottom: 0 }}>
@@ -72,8 +68,6 @@ export function AccountPage() {
       </div>
 
       <SrsSettingsCard />
-
-      {me.view_features.includes('conversation') && <EmmaMemoryCard />}
 
       <form
         className="card stack"
@@ -113,5 +107,52 @@ export function AccountPage() {
         </div>
       </form>
     </div>
+  )
+}
+
+/** The account name, with inline editing. */
+function DisplayName({ name }: { name: string }) {
+  const rename = useRenameMe()
+  const [draft, setDraft] = useState<string | null>(null)
+  if (draft === null)
+    return (
+      <div className="row" style={{ gap: 6 }}>
+        <h2 style={{ fontSize: '1.2rem' }}>{name}</h2>
+        <button type="button" className="btn icon sm ghost" aria-label="Đổi tên" title="Đổi tên" onClick={() => setDraft(name)}>
+          <Icon name="pen" size={16} />
+        </button>
+      </div>
+    )
+  const value = draft.trim()
+  return (
+    <form
+      className="stack"
+      style={{ gap: 6 }}
+      onSubmit={(e) => {
+        e.preventDefault()
+        if (!value || value === name) return setDraft(null)
+        rename.mutate(value, { onSuccess: () => setDraft(null) })
+      }}
+    >
+      <div className="row" style={{ gap: 6, flexWrap: 'wrap' }}>
+        <input
+          className="input"
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => e.key === 'Escape' && setDraft(null)}
+          maxLength={80}
+          aria-label="Tên hiển thị"
+          autoFocus
+          style={{ maxWidth: 260 }}
+        />
+        <button className="btn sm primary" type="submit" disabled={!value || rename.isPending}>
+          Lưu
+        </button>
+        <button className="btn sm ghost" type="button" onClick={() => setDraft(null)}>
+          Huỷ
+        </button>
+      </div>
+      {rename.error && <ErrorBox error={rename.error} />}
+    </form>
   )
 }

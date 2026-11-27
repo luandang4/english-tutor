@@ -148,6 +148,11 @@ async def end_session(session: AsyncSession, token: str | None) -> None:
         await session.commit()
 
 
+async def rename(session: AsyncSession, user: User, display_name: str) -> None:
+    user.display_name = display_name
+    await session.commit()
+
+
 async def change_password(session: AsyncSession, user: User, current: str, new: str, keep_token: str) -> None:
     if not verify_password(user.password_hash, current):
         raise AuthError("Mật khẩu hiện tại không đúng.", 400)

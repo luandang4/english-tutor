@@ -5,7 +5,7 @@ from fastapi import APIRouter, HTTPException, Request, Response, status
 from app.api.deps import CurrentUser, SessionDep
 from app.core.config import get_settings
 from app.models.user import User
-from app.schemas.api import FeatureUsage, LoginIn, PasswordChangeIn, PlanBrief, RegisterIn, UserOut
+from app.schemas.api import FeatureUsage, LoginIn, PasswordChangeIn, PlanBrief, ProfileUpdateIn, RegisterIn, UserOut
 from app.services import access, auth, plans
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -83,6 +83,12 @@ async def logout(request: Request, session: SessionDep) -> Response:
 
 @router.get("/me", response_model=UserOut)
 async def me(user: CurrentUser, session: SessionDep) -> UserOut:
+    return await _user_out(session, user)
+
+
+@router.patch("/me", response_model=UserOut)
+async def update_me(body: ProfileUpdateIn, user: CurrentUser, session: SessionDep) -> UserOut:
+    await auth.rename(session, user, body.display_name)
     return await _user_out(session, user)
 
 

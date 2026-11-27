@@ -1,11 +1,10 @@
 import { Link } from 'react-router-dom'
 
-import { useMe, useProgress, useUsage } from '../../api/hooks'
+import { useMe, useProgress } from '../../api/hooks'
 import type { Feature } from '../../api/types'
 import { contactText, daysLeft, formatDate, useAccess } from '../../lib/access'
 import type { Skill } from '../../api/types'
 import { ErrorBox, Icon, Loading, type IconName } from '../../components/ui'
-import { UsageBars } from '../../components/ui/UsageBars'
 import { SKILL_LABEL, scoreTone, timeAgo } from '../../lib/format'
 import { TodayCard } from '../review/TodayCard'
 
@@ -69,7 +68,6 @@ export function DashboardPage() {
       </div>
 
       <ExpiryReminder />
-      <UsageToday />
 
       {isPending ? (
         <Loading />
@@ -186,18 +184,3 @@ function ExpiryReminder() {
   )
 }
 
-/** Today's and this month's use of each feature against the plan's limits. */
-function UsageToday() {
-  const { data } = useUsage()
-  const limited = (data ?? []).filter((u) => u.limit != null || u.limit_month != null)
-  if (!limited.length) return null
-  return (
-    <section className="card usage-today">
-      <div className="card-title">
-        <h3>Lượt dùng của bạn</h3>
-        <span className="small muted">Lượt ngày mở lại lúc 0h, lượt tháng mở lại ngày 1</span>
-      </div>
-      <UsageBars usage={limited} />
-    </section>
-  )
-}

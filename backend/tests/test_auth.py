@@ -88,3 +88,12 @@ async def test_create_user_works_while_signup_is_closed(app_client) -> None:  # 
         user = await create_user(session, email="Admin@Example.com", password="secret-pass-1", display_name="Admin")
     set_system(registration_open=True)
     assert user.email == "admin@example.com"
+
+
+def test_rename_account(app_client) -> None:  # noqa: ANN001, ARG001
+    c = new_user_client("rename@example.com", "Old Name")
+    r = c.patch("/api/auth/me", json={"display_name": "  Nguyễn   Văn A "})
+    assert r.status_code == 200 and r.json()["display_name"] == "Nguyễn Văn A"
+    assert c.get("/api/auth/me").json()["display_name"] == "Nguyễn Văn A"
+    assert c.patch("/api/auth/me", json={"display_name": "   "}).status_code == 422
+    assert c.patch("/api/auth/me", json={"display_name": "x" * 81}).status_code == 422
