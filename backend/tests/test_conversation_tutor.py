@@ -28,7 +28,7 @@ def test_prompt_locks_level_and_requires_correction(level: str) -> None:
 @pytest.mark.parametrize("level", list(LEVELS))
 def test_enhancement_on_every_level_with_its_own_policy(level: str) -> None:
     prompt = system_prompt(level, "x", False)
-    assert f"SAY IT BETTER (sentence upgrades, level {level})" in prompt
+    assert f"ANSWER COACHING (help them answer WELL, not only correctly — level {level})" in prompt
     assert LEVEL_POLICY[level].enhancement in prompt
     assert "Never in a turn that has a real error" in prompt
     assert "one step above" in prompt

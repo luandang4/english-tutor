@@ -6,9 +6,9 @@ export const CUSTOM = 'custom' // learner-defined scenario (title + wishes), see
 export type FontSize = 's' | 'm' | 'l'
 
 export const ENHANCEMENT_OPTIONS: { value: Enhancement; label: string; title: string }[] = [
-  { value: 'low', label: 'Ít', title: 'Khoảng 1 lần mỗi 5 lượt nói' },
-  { value: 'medium', label: 'Vừa', title: 'Khoảng 1 lần mỗi 3 lượt nói (A1–A2 thưa hơn)' },
-  { value: 'high', label: 'Nhiều', title: 'Hầu như mỗi câu còn đơn giản' },
+  { value: 'low', label: 'Ít', title: 'Khoảng 1 lần mỗi 4 lượt nói' },
+  { value: 'medium', label: 'Vừa', title: 'Khoảng 1 lần mỗi 2 lượt nói' },
+  { value: 'high', label: 'Nhiều', title: 'Sau hầu hết câu trả lời đúng' },
 ]
 export const FONT_SIZES: FontSize[] = ['s', 'm', 'l']
 export const FONT_LABEL: Record<FontSize, string> = { s: 'Chữ nhỏ', m: 'Chữ vừa', l: 'Chữ lớn' }

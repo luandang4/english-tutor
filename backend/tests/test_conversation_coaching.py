@@ -15,6 +15,7 @@ from app.services.conversation.tutor import (
     ENHANCEMENT_FREQUENCY,
     FEEDBACK_TOOL,
     HINT_TOOL,
+    LEVEL_POLICY,
     TRANSLATE_TOOL,
     system_prompt,
 )
@@ -61,12 +62,28 @@ def test_hint_vietnamese_only_up_to_b1() -> None:
         assert "in English only (no Vietnamese at this level)" in system_prompt(level, "x", False)
 
 
-def test_enhancement_frequency_follows_learner_choice_and_is_sparser_for_beginners() -> None:
-    for choice, (normal, beginner) in ENHANCEMENT_FREQUENCY.items():
-        assert f"How often: {normal}." in system_prompt("B1", "x", False, choice)
-        assert f"How often: {beginner}." in system_prompt("A2", "x", False, choice)
-    assert "How often: about once every 3 learner turns." in system_prompt("B2", "x", False)  # default = medium
-    assert "How often: about once every 3 learner turns." in system_prompt("B2", "x", False, "bogus")
+def test_enhancement_frequency_follows_learner_choice() -> None:
+    for choice, how_often in ENHANCEMENT_FREQUENCY.items():
+        assert f"How often: {how_often}." in system_prompt("A1", "x", False, choice)
+    default = f"How often: {ENHANCEMENT_FREQUENCY['medium']}."
+    assert default in system_prompt("B2", "x", False) and default in system_prompt("B2", "x", False, "bogus")
+
+
+@pytest.mark.parametrize("level", list(LEVELS))
+def test_prompt_pins_the_level_and_coaches_answers(level: str) -> None:
+    policy = LEVEL_POLICY[level]
+    prompt = system_prompt(level, "x", False)
+    assert "ANSWER COACHING" in prompt and f"A good answer at this level: {policy.answer_goal}." in prompt
+    assert "quick speaking tip" in prompt
+    assert f"Ongoing guidance: {policy.guidance}." in prompt
+    assert prompt.rstrip().endswith(f"Ongoing guidance: {policy.guidance}.")  # level restated last
+    assert "do not drift up" in prompt
+
+
+def test_beginner_levels_have_hard_limits_and_frames() -> None:
+    assert "at most 8 words per sentence" in LEVEL_POLICY["A1"].english
+    assert "EVERY question you ask comes with help" in LEVEL_POLICY["A1"].guidance
+    assert "at most 12 words per sentence" in LEVEL_POLICY["A2"].english
 
 
 def test_live_settings_reads_enhancement_choice() -> None:

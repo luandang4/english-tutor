@@ -77,7 +77,7 @@ export function SetupPanel(props: {
       )}
 
       <Segmented
-        label="Emma gợi ý câu hay hơn"
+        label="Emma hướng dẫn trả lời hay hơn"
         value={prefs.enhancement}
         options={ENHANCEMENT_OPTIONS}
         onChange={prefs.setEnhancement}
