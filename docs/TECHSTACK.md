@@ -22,6 +22,16 @@
 Gọi Gemini (trừ Live) đi qua `services/ai/client.py` (chuỗi model dự phòng, chỉnh trong `.env`); gọi Azure đi
 qua `services/speech/azure.py`.
 
+### Thử nghiệm: chấm phát âm bằng model chạy local
+
+`PRONUNCIATION_ENGINE=azure|local|auto` (`services/speech/assessment.py`). `local` chấm trên máy chủ bằng
+`facebook/wav2vec2-lv-60-espeak-cv-ft` (Apache-2.0, ONNX int8, `services/speech/phoneme.py`): espeak sinh âm vị
+mong đợi, CTC forced alignment tìm chúng trong audio, điểm âm vị là xác suất của model (chấp nhận biến thể giọng
+như /ɔː/~/ɑː/, t bật). Miễn phí, ~0.3–0.7 s mỗi câu trên CPU, ~800 MB RAM khi đã nạp (nạp lần đầu dùng, giải phóng
+sau `PHONEME_IDLE_UNLOAD_SECONDS`). Điểm chỉ là **ước lượng** và UI có ghi rõ; `auto` vẫn dùng Azure, chỉ chuyển
+sang model local khi Azure không dùng được. Đây là phần mở rộng của quy tắc trên: phát âm = Azure, có thể thêm
+model local.
+
 ## Kiến trúc
 
 ```
