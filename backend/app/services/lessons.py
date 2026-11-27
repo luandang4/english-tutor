@@ -47,6 +47,31 @@ async def create_lesson(session: AsyncSession, topic: Topic, level: str, user_id
     return lesson
 
 
+AVOID_WORDS_LIMIT = 200  # newest first; keeps the prompt small
+
+
+def _lesson_words(content: Any) -> list[str]:
+    words = content.get("words") if isinstance(content, dict) else None
+    return [w["word"] for w in words or [] if isinstance(w, dict) and isinstance(w.get("word"), str)]
+
+
+async def words_to_avoid(session: AsyncSession, lesson: Lesson) -> list[str]:
+    """Words a new vocabulary lesson should not repeat: the learner's earlier vocabulary lessons (newest first,
+    even before their words reach the deck) and the deck itself. Case-insensitive, deduplicated."""
+    earlier = await session.scalars(
+        select(Lesson.content)
+        .where(Lesson.user_id == lesson.user_id, Lesson.skill == Skill.VOCABULARY, Lesson.id != lesson.id)
+        .order_by(Lesson.created_at.desc())
+    )
+    deck = await session.scalars(
+        select(VocabCard.word).where(VocabCard.user_id == lesson.user_id).order_by(VocabCard.id.desc())
+    )
+    seen: dict[str, str] = {}
+    for word in [w for content in earlier for w in _lesson_words(content)] + list(deck):
+        seen.setdefault(word.strip().lower(), word.strip())
+    return list(seen.values())[:AVOID_WORDS_LIMIT]
+
+
 async def generate_lesson(lesson_id: int) -> None:
     """Background job: ask Gemini for the lesson body and store it."""
     async with SessionLocal() as session:
@@ -55,11 +80,11 @@ async def generate_lesson(lesson_id: int) -> None:
             return
         try:
             if lesson.skill == Skill.VOCABULARY:
-                known = (await session.scalars(select(VocabCard.word).where(VocabCard.user_id == lesson.user_id))).all()
+                known = await words_to_avoid(session, lesson)
                 draft, model = await get_ai().generate_json(
                     models=get_settings().content_models,
                     system=TEACHER_SYSTEM,
-                    prompt=vocab_lesson_prompt(lesson.topic, lesson.level, list(known)),
+                    prompt=vocab_lesson_prompt(lesson.topic, lesson.level, known),
                     schema=VocabLessonDraft,
                 )
             else:

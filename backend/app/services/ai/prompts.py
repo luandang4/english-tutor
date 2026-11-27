@@ -44,14 +44,15 @@ def _topic(topic: Topic, label: str = "Topic") -> str:
 
 
 def vocab_lesson_prompt(topic: Topic, level: str, known_words: list[str]) -> str:
-    avoid = ", ".join(known_words[:150]) or "(none)"
+    avoid = ", ".join(known_words) or "(none)"
     return f"""Create a vocabulary lesson.
 {_topic(topic)}
 Learner level: {_level(level)}
 
 Requirements:
 - 10 high-value words or short phrases for this topic and level (mix of nouns, verbs, adjectives, collocations).
-- Avoid words the learner already has in their deck: {avoid}
+- Every word must be NEW: do not use any word or phrase below, nor a close variant of one (other form, plural,
+  same phrase with a different verb). The learner already studied them: {avoid}
 - 8 exercises that practise THESE words: 3 multiple_choice (meaning or usage in context),
   3 fill_blank (sentence with one gap; answers = the target word in the right form, include valid variants),
   2 produce (ask the learner to write their own sentence using a given word; answers = 1-2 model sentences).
